@@ -1,0 +1,56 @@
+# Windows Steam inside Wine
+
+A Steamworks game (`steam_api64.dll`, `[Steamworks.NET] Initialized`, `Steam Login success`) needs a
+running **Windows** Steam client logged into the user's account. Mac Steam can't serve a Windows
+process. Steam Cloud saves then sync with the PC. Copying the game from the PC plus its
+`appmanifest_<appid>.acf` into `steamapps/` makes Steam treat it as installed (it may still patch it).
+
+## Install and first start
+1. Silent install: `wine SteamSetup.exe /S`, then `wineserver -w`. `Steam.exe` lands in
+   `C:\Program Files (x86)\Steam`.
+2. `steam_dev.cfg` with `@nClientDownloadEnableHTTP2PlatformWindows 0`, because HTTP/2 downloads stall.
+3. First launch: the bootstrapper downloads ~336 MB, restarts, may download ~240 MB more, then
+   starts `steamwebhelper` (CEF) and shows "Войти в Steam" (an `SDL_app` window). Watch progress in
+   `logs/bootstrap_log.txt`, or with `wtool list` (`BootstrapUpdateUIClass` window with progress text).
+4. The user logs in (password or QR from the Steam app, Steam Guard on the phone). Then `-applaunch`
+   starts the game. The next launches run with `-silent`, so Steam logs in by itself without a window.
+
+## "Unexpected Transport Error (0x3008)" / «Непредвиденная ошибка транспорта»
+- Symptom: no login window. `logs/transport_client.txt` repeats `WebUITransport: Connection rejected`.
+  `webhelper_js.txt` shows websocket retries 0..8, then a VGUI dialog with radio buttons appears.
+- Root cause (WineCX 24): `CWebUITransport` accepts a websocket only after
+  `GetExtendedTcpTable(AF_INET, TCP_TABLE_OWNER_PID_CONNECTIONS)` finds the client-side row (ESTABLISHED,
+  local addr:port = peer). Its owner PID must then pass `EqualSid` + `ProcessIdToSessionId` and equal
+  Steam's PID or belong to the webhelper. This Wine's `nsiproxy.so` can't read the TCP table at all, so
+  every connection is "from unknown source".
+- Fix: `scripts/wine/patch_nsiproxy.sh` (built into the Northgard `install.sh`). Verify with
+  `scripts/win32/tcptest.exe`: it should print `ret=0`, and your own connection gets a PID after it sends data.
+- Owner PIDs exist only for sockets whose fd the Windows process already holds. Wine creates sockets in
+  wineserver and hands the fd over lazily, on first I/O. The webhelper sends its upgrade request right
+  away, so Steam's check passes.
+- The dialog's "VO: Continue Anyway" is «Только для Valve: продолжить» in Russian Steam. Picking it
+  does not fix the cause; the patch does. The dialog is VGUI: no Win32 child controls, and it can't be
+  captured from another process. Ask the user for a screenshot.
+
+## Login notes
+- At the login screen the CM connection is dropped about every 60 s with "Try another CM" /
+  "Disconnected By Remote Host", and Steam reconnects. That is normal: login works within it.
+- Wine ignores the macOS system proxy (e.g. Hiddify at 127.0.0.1:12334). Steam connects directly,
+  which worked in Russia (Nov 2026). Suspect the network only if logins keep failing.
+- `cef_log.txt` noise to ignore: `WSALookupServiceBegin failed`, `Failed to set crash key`,
+  `gldriverquery.exe` missing SDL2.dll, `Disabling GPU acceleration: Disabled/CommandLine`.
+
+## Closing Steam safely
+- Never `kill -9` Steam while logged in: it loses the session token and the user has to log in again
+  with phone approval.
+- Graceful: `wine steam.exe -shutdown` (the launcher's `--stop`). Steam ignores it while a modal VGUI
+  dialog is up. Before any login has happened, `WINEPREFIX=<prefix> wineserver -k` is fine. It kills
+  only that prefix's processes, so other Wine sessions of the user survive.
+- Close a running game gracefully from outside: post WM_CLOSE to its window
+  (`scripts/win32/wclose.exe <hwnd>`; get the hwnd with `wtool list`). The watcher then shuts Steam down.
+- Count processes: Steam restarts itself as lowercase `steam.exe`, so match case-insensitively.
+  In zsh, `ps args | grep pattern` matches your own shell. Count with `ps -Ao comm | grep -c winetemp-<inode>`.
+
+## Overlay
+Disable `gameoverlayrenderer,gameoverlayrenderer64=d`. Its D3D11 hooks can hang games at
+`GfxDevice: creating device client`. Unchecking it in Steam's settings is not enough.

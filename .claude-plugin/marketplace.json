@@ -1,0 +1,14 @@
+{
+  "name": "macdows",
+  "description": "Windows games on Apple Silicon Macs: the windows-game-to-mac skill for Claude Code",
+  "owner": {
+    "name": "i7ok"
+  },
+  "plugins": [
+    {
+      "name": "windows-game-to-mac",
+      "source": "./",
+      "description": "Port, wrap or fix Windows PC games on Apple Silicon Macs with a free Wine stack: .app kit, Windows Steam in Wine, input and quit fixes"
+    }
+  ]
+}

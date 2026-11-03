@@ -1,0 +1,23 @@
+#!/bin/bash
+# Runs a Windows program with a wrapped game's own Wine against its own prefix, with the same
+# environment its launcher uses, e.g. to run the scripts/win32 helpers inside the game's session.
+#
+#   APP="/Applications/Northgard Battlegrounds.app" \
+#   PREFIX="$HOME/Library/Application Support/Northgard Battlegrounds/prefix" \
+#   appwine wtool.exe list
+#
+# Optional: EXTRA_OVERRIDES="version=n,b" (appended to WINEDLLOVERRIDES), WINEDEBUG (default -all).
+# Never point this at a prefix created by another Wine build: that corrupts the prefix.
+set -u
+: "${APP:?set APP to the .app bundle}" "${PREFIX:?set PREFIX to its Wine prefix}"
+C="$APP/Contents"
+if [ -x "$C/MacOS/wine" ]; then BIN="$C/MacOS"                        # our layout (bin -> Contents/MacOS)
+elif [ -x "$C/SharedSupport/wine/bin/wine" ]; then BIN="$C/SharedSupport/wine/bin"
+else echo "no wine binary found in $APP" >&2; exit 1; fi
+export WINEPREFIX="$PREFIX"
+export WINEDEBUG="${WINEDEBUG:--all}"
+export WINEDLLOVERRIDES="gameoverlayrenderer,gameoverlayrenderer64=d;winemenubuilder.exe=d${EXTRA_OVERRIDES:+;$EXTRA_OVERRIDES}"
+export DYLD_FALLBACK_LIBRARY_PATH="$C/lib:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib:/usr/local/lib:/usr/lib"
+export PATH="$BIN:/usr/bin:/bin:/usr/sbin:/sbin"   # Wine finds wineserver through PATH too
+export MVK_CONFIG_LOG_LEVEL=1
+exec "$BIN/wine" "$@"

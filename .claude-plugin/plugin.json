@@ -1,0 +1,11 @@
+{
+  "name": "windows-game-to-mac",
+  "displayName": "Windows game → Mac",
+  "description": "Port, wrap or fix Windows PC games so they run on Apple Silicon Macs as native-looking .app bundles with a free Wine stack (WineCX or Gcenx Wine, DXMT, GStreamer), including Windows Steam inside Wine.",
+  "author": {
+    "name": "i7ok",
+    "url": "https://github.com/i7ok"
+  },
+  "repository": "https://github.com/i7ok/Macdows-skills",
+  "keywords": ["wine", "macos", "apple-silicon", "windows-games", "steam", "dxmt", "unity"]
+}

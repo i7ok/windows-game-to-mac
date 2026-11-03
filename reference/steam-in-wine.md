@@ -10,12 +10,13 @@ process. Steam Cloud saves then sync with the PC. Copying the game from the PC p
    `C:\Program Files (x86)\Steam`.
 2. `steam_dev.cfg` with `@nClientDownloadEnableHTTP2PlatformWindows 0`, because HTTP/2 downloads stall.
 3. First launch: the bootstrapper downloads ~336 MB, restarts, may download ~240 MB more, then
-   starts `steamwebhelper` (CEF) and shows "Войти в Steam" (an `SDL_app` window). Watch progress in
-   `logs/bootstrap_log.txt`, or with `wtool list` (`BootstrapUpdateUIClass` window with progress text).
+   starts `steamwebhelper` (CEF) and shows the "Sign in to Steam" window (an `SDL_app` window, titled
+   «Войти в Steam» in Russian Steam). Watch progress in `logs/bootstrap_log.txt`, or with `wtool list`
+   (`BootstrapUpdateUIClass` window with progress text).
 4. The user logs in (password or QR from the Steam app, Steam Guard on the phone). Then `-applaunch`
    starts the game. The next launches run with `-silent`, so Steam logs in by itself without a window.
 
-## "Unexpected Transport Error (0x3008)" / «Непредвиденная ошибка транспорта»
+## "Unexpected Transport Error (0x3008)" («Непредвиденная ошибка транспорта» in Russian Steam)
 - Symptom: no login window. `logs/transport_client.txt` repeats `WebUITransport: Connection rejected`.
   `webhelper_js.txt` shows websocket retries 0..8, then a VGUI dialog with radio buttons appears.
 - Root cause (WineCX 24): `CWebUITransport` accepts a websocket only after

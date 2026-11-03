@@ -9,7 +9,7 @@ Windows Steam in the prefix. `-applaunch 4487060 -force-d3d11`, overlay off.
 |---|---|---|
 | `install.sh` aborts: `wine: could not exec the wine loader` | CX loader re-execs from `lib/../../bin`; bin was moved to `Contents/MacOS` | `Contents/bin -> MacOS` symlink |
 | `sudo` for GStreamer fails in Claude's shell | no TTY | `osascript … with administrator privileges` (native password dialog) |
-| Steam: no login window, then «Непредвиденная ошибка транспорта (0x3008)» | nsiproxy can't read TCP tables → GetExtendedTcpTable fails → Steam rejects its webhelper | `patch_nsiproxy.sh` (2×32 bytes + ad-hoc sign) |
+| Steam: no login window, then "Unexpected Transport Error (0x3008)" | nsiproxy can't read TCP tables → GetExtendedTcpTable fails → Steam rejects its webhelper | `patch_nsiproxy.sh` (2×32 bytes + ad-hoc sign) |
 | Steam stuck on that dialog, `-shutdown` ignored | modal VGUI dialog | `wineserver -k` for the prefix (nobody logged in yet) |
 | Login screen: CM drops every ~60 s ("Try another CM") | normal behaviour | none; the user logged in with QR/password |
 | Game renders, clicks do nothing (sometimes a click sound), scroll dead | Unity 6 mouse-in-pointer mode not in Wine 9 | ngfix `version.dll`: fake EnableMouseInPointer + legacy→WM_POINTER conversion |
@@ -19,7 +19,7 @@ Windows Steam in the prefix. `-applaunch 4487060 -force-d3d11`, overlay off.
 Healthy end state: one click → Steam logs in silently → game; ⌘Q → game saves to Steam Cloud and quits →
 watcher shuts Steam down; all processes of the prefix exit within ~30 s.
 
-## Test Drive Unlimited 2: stopped at DRM (kit: `~/Claude/TDU2-Mac`)
+## Test Drive Unlimited 2: stopped at DRM (kit: `~/Macdows/TDU2-Mac`)
 2011, D3D9, 32-bit, Russian retail v086, **SecuROM 8.03** + PA activation. Gcenx Wine 11, game moved
 into the bundle, offline `sandbox-exec` (user's hard rule), CrashHook.dll stub for the UpLauncher mutex
 check. Every launch dies in the SecuROM wrapper ("DSS": security module can't be activated). Its own

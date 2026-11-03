@@ -69,9 +69,9 @@ Silent install, `steam_dev.cfg`, first-start updates (~5–10 min), login by the
 ### 5. Hand over
 Put every fix into the kit (re-runnable `install.sh`, launcher, shim source + prebuilt binary), not only
 into the installed app. Re-run the installer to prove it, and remove temporary diagnostics. Update
-`README.md` (Russian: install, first launch, how to quit, what the Dock shows, logs, reset) and
-`CLAUDE.md` (findings, rules, risks). Close the game and Steam, and confirm no processes of the prefix
-remain.
+`README.md` (in the user's language: install, first launch, how to quit, what the Dock shows, logs,
+reset) and `CLAUDE.md` (findings, rules, risks). Close the game and Steam, and confirm no processes of
+the prefix remain.
 
 ## Debugging method → `reference/diagnostics.md`
 Read the logs first: wine.log, Steam's `logs/*.txt`, Player.log, the shim log. Then test the
@@ -90,7 +90,7 @@ what to do while a background loop watches the logs.
 | Gcenx Wine can't find wineserver | add `Contents/MacOS` to `PATH` or set `WINESERVER` |
 | Steam never logs in, `secure connections will not be available` | no libgnutls → support dylibs |
 | Dialogs without text | no libfreetype |
-| No Steam login window; «Непредвиденная ошибка транспорта (0x3008)»; `Connection rejected` in `transport_client.txt` | nsiproxy TCP-table bug → `patch_nsiproxy.sh`; check with `tcptest.exe` |
+| No Steam login window; "Unexpected Transport Error (0x3008)"; `Connection rejected` in `transport_client.txt` | nsiproxy TCP-table bug → `patch_nsiproxy.sh`; check with `tcptest.exe` |
 | webhelper crash-loops, `[Logged Off]` forever | prefix touched by two Wine builds → `install.sh --reset` (fresh prefix) |
 | CM "Try another CM" about every 60 s at the login screen | normal, ignore |
 | "Failed to initialize graphics / DirectX 11" | DXMT not in the Wine tree / `winemetal.so` missing |

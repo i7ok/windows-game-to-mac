@@ -2,7 +2,7 @@
 
 The working template is `~/Macdows/Northgard-Mac` (`install.sh`, `payload/NorthgardBG`,
 `payload/Info.plist`, `payload/ngfix/`). Copy it and adapt rather than starting from zero.
-TDU2 (`~/Claude/TDU2-Mac` if still there) is the variant with the game moved inside the bundle and an
+TDU2 (`~/Macdows/TDU2-Mac`) is the variant with the game moved inside the bundle and an
 offline sandbox.
 
 ## Kit layout (one folder per game under ~/Macdows)
@@ -16,7 +16,7 @@ offline sandbox.
 | `cache/` | All pinned downloads (engine, DXMT, dylibs, GStreamer, SteamSetup) |
 | `game/` | The game folder copied from the PC (+ Steam `appmanifest_<id>.acf`) |
 | `docs/`, `icon/` | Reference notes, the PC's game log, icon pipeline |
-| `README.md` | For the user, in Russian: install, first launch, how to quit, where logs are |
+| `README.md` | For the user, in their language: install, first launch, how to quit, where logs are |
 | `CLAUDE.md` | For Claude: user, goal, stack, findings, rules, known risks. Update it as you learn |
 
 ## Bundle layout (WineCX engine)

@@ -8,9 +8,8 @@ description: >
   game windows, Unity games ignoring clicks or scroll, Cmd+Q not quitting, double cursor, DRM and
   anti-cheat dead ends. Use whenever someone wants to play, run, install, port or move a Windows game
   (exe, Steam, GOG, disc) to a Mac, continues such a port (a kit under ~/Macdows), or reports a problem
-  in a Wine-wrapped game, in any language («запусти виндовую игру на маке», «перенеси игру на Мак»,
-  «в игре не работают клики»), even without naming the skill. Not for native macOS games or ports with
-  source code.
+  in a Wine-wrapped game, in any language, even without naming the skill. Not for native macOS games or
+  ports with source code.
 ---
 
 # Windows game → Mac (free Wine stack)

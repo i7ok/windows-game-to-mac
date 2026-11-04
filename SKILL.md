@@ -20,7 +20,8 @@ with ⌘Q, and anything it needs (Windows Steam) starts and stops with it. Every
 components. A real port is impossible without source code, so this is a Wine wrapper done well.
 
 This skill holds what was learned porting Northgard Battlegrounds (works), Test Drive Unlimited 2
-(blocked by SecuROM) and Three Kingdoms: Fate of the Dragon (own DLL remaster). The working template is
+(blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster) and Dimraeth (Unity 6, a
+clone of the Northgard kit). The working template is
 the Northgard kit, `~/Macdows/Northgard-Mac`. Copy it for a new game. The skill doesn't ship it (it holds
 game files and Wine builds), so on a Mac without it build the kit from `reference/app-bundle.md`.
 
@@ -51,7 +52,8 @@ Start from the Northgard kit: pinned components in `cache/`, `install.sh`, and t
 prefix/engine-version guard, settings.sh, logs, watcher and modes. Install GStreamer before the prefix
 exists, through the native password dialog. For the WineCX engine, add the `Contents/bin -> MacOS`
 symlink and run `scripts/wine/patch_nsiproxy.sh` on its `nsiproxy.so`. Both are already in the
-Northgard `install.sh`.
+Northgard `install.sh`. A kit cloned elsewhere (on the user's PC, say) from an older copy misses fixes
+made on the Mac later: diff its `install.sh` and launcher against the installed working app first.
 
 ### 3. Steam (Steamworks games) → `reference/steam-in-wine.md`
 Silent install, `steam_dev.cfg`, first-start updates (~5–10 min), login by the user, `-silent
@@ -101,7 +103,8 @@ what to do while a background loop watches the logs.
 | ⌘Q does nothing | WineCX and Gcenx 11 map Command→Alt; Wine's Quit is ⌥⌘Q → catch Alt+Q (scan 0x10) in the shim |
 | Two cursors | game calls ShowCursor(0); check `trace+cursor` / shim log |
 | System cursor back after ⌘Tab or a click at the top edge | winemac's `[NSCursor hide]` counter; keep ShowCursor(0) from Wine, use a transparent cursor (`input-window-quit.md`) |
-| Menu bar slides over a fullscreen game at the top edge | borderless window over the work area instead of the whole screen |
+| Menu bar slides over a fullscreen game at the top edge | borderless window over the work area instead of the whole screen (Unity: ngfix's work-area monitor, `unity.md`) |
+| Unity window shrunk to the work area: gray band at the top, clicks above their targets | clamped size: stale caption frame, Unity renders the size it asked for → show Unity a work-area-sized monitor (`unity.md`) |
 | D3D9 game wants fullscreen 640x480, CreateDevice fails `0x8876086a` in a loop | the Mac has no such mode → `HKCU\Software\Wine\X11 Driver\EmulateModeset=y` |
 | Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
 | An invisible dialog turns white and hides the game | it painted once and became opaque; an empty window region does nothing in winemac → layered, alpha 0 |
@@ -132,4 +135,4 @@ what to do while a background loop watches the logs.
 | `scripts/pe/*.py` | PE analysis: imports, IAT slot names, call sites of an import, string xrefs (run with `python3 -I`) |
 | `scripts/wine/appwine` | Run a helper with a wrapped game's own Wine and prefix |
 | `scripts/wine/patch_nsiproxy.sh` | The Steam transport fix for WineCX 24.0.7_7 |
-| `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy) to adapt per game |
+| `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy), optional borderless work-area window; adapt per game |

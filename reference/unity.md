@@ -11,8 +11,12 @@
   A black screen after the logos with `WindowsVideoMedia error` in the log means GStreamer is missing.
 - Window size: with `RetinaMode=n` the window is sized in points (e.g. 1440×842 client on a 1440×900
   display). If a Retina-sized window shows up, pass `-screen-fullscreen 0 -screen-width W -screen-height H`.
+  For a borderless window between the menu bar and the Dock see "Borderless window over the work area".
 - `Curl error 35: Recv failure: Connection was reset` in Player.log means some web service (analytics)
-  is unreachable. Harmless if login and cloud work.
+  is unreachable. Harmless if login and cloud work. `Curl error 35: Cert verify failed. Certificate could
+  not be verified (either omitted or unsupported). UnityTls error code: 7` can be the same thing: in
+  Dimraeth it was a news-feed host with no DNS record, and the PC's log had `Curl error 6: Could not
+  resolve host` at the same point. Compare with the PC's Player.log before chasing certificates.
 
 ## Unity 6: clicks and scroll ignored → mouse-in-pointer mode
 Symptom: the game renders and the cursor moves, but UI buttons don't react, sometimes with only a click
@@ -47,6 +51,33 @@ Fix: the **ngfix shim** (`assets/ngfix/`, deployed in Northgard as `payload/ngfi
   import lib for `UnityMain`, never called) shows whether the shim loads natively and patches the IAT.
   A harness that `#include`s ngfix.c and posts legacy messages to its own window shows the conversion.
   Only then ask the user to click.
+
+## Borderless window over the work area
+Unity's FullScreenWindow (the usual default) covers the whole screen under Wine: winemac lifts it above
+the menu bar while it is active, and the menu bar still slides in over the game at the top edge
+(`input-window-quit.md`). Users here prefer a borderless window between the menu bar and the Dock. ngfix
+does that when built with `FIT_WORKAREA_DEFAULT=1` or run with `NGFIX_FIT_WORKAREA=1` (Dimraeth):
+- It shows UnityPlayer a monitor the size of the work area through IAT hooks: `GetMonitorInfoW/A`
+  (rcMonitor = rcWork, which winemac fills from NSScreen visibleFrame), `EnumDisplayMonitors` (rects),
+  `EnumDisplaySettingsW/A` (modes of the monitor's size), `GetSystemMetrics` (SM_CX/CYSCREEN) and
+  `GetDeviceCaps` (HORZRES/VERTRES/DESKTOP*). Check that UnityPlayer imports them.
+- The launcher passes `-screen-fullscreen 1 -window-mode borderless`. Unity's own fullscreen window then
+  asks for the work-area size by itself (1440×870 on a 1440×900 Air with a 30-pt menu bar and a hiding
+  Dock) and renders at that size, also after the game applies its saved video settings.
+- Safety net in the same shim: the window is created without frame styles, `WM_STYLECHANGING` can't add
+  them back, and every move/resize is clamped to the work area with SWP_FRAMECHANGED.
+
+Traps found on the way:
+- Clamping the window alone doesn't work. In windowed mode (`-popupwindow`) and in FullScreenWindow Unity
+  keeps rendering at the size it asked for (1440×900, asked again when the game applies its video
+  settings). macOS squeezes that picture into the smaller window, and clicks land above their targets:
+  the user sees button hitboxes below the buttons.
+- Unity creates its window with a caption (`00ca0000`) and makes it WS_POPUP later. When a clamp keeps the
+  old size, win32u's `set_window_pos` re-adds SWP_NOSIZE after WM_WINDOWPOSCHANGING and skips
+  WM_NCCALCSIZE, so the caption's frame stays inside the WS_POPUP window (client 1434×838 at 3,59 in a
+  1440×870 window): a gray band under the menu bar.
+- Check with `winfo.exe <hwnd>`: the client rect must equal the window rect. In ngfix.log, `-> work area`
+  lines with a size Unity didn't ask for mean a squeezed picture.
 
 ## Cursor
 In battle the game draws its own cursor and calls `ShowCursor(0)` (count -1). Wine passes the hide to

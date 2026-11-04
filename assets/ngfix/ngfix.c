@@ -1,4 +1,4 @@
-/* ngfix: input fixes for Northgard Battlegrounds under Wine on macOS.
+/* ngfix: input and window fixes for Unity 6 games under Wine on macOS.
  *
  * Loaded into the game as an app-local version.dll (UnityPlayer.dll imports VERSION.dll); the
  * real version functions are forwarded to kernelbase by version.def.
@@ -13,14 +13,34 @@
  *    we close the window instead. Q is matched by scan code, so any keyboard layout works. Option
  *    is not Alt unless OptionIsAlt is set. Quit from the Dock reaches the game as
  *    WM_QUERYENDSESSION, which we also turn into a normal close.
+ * 3. Window (optional, FIT_WORKAREA_DEFAULT / NGFIX_FIT_WORKAREA). A window covering the whole screen
+ *    is "fullscreen" for winemac: lifted above the menu bar while active, yet the menu bar still
+ *    slides in at the top edge. This gives the game a borderless window over the work area instead
+ *    (below the menu bar, above the Dock), like a normal Mac window. Unity sizes its back buffer from
+ *    the monitor (FullScreenWindow) or from the resolution it asked for (windowed), so merely
+ *    shrinking its window gives a scaled picture with clicks landing above their targets (button
+ *    hitboxes below the buttons). So UnityPlayer is shown a
+ *    monitor the size of the work area (GetMonitorInfo's rcWork, which winemac fills from NSScreen
+ *    visibleFrame): rcMonitor = rcWork, EnumDisplayMonitors' rects, display modes of the monitor's
+ *    size and SM_CX/CYSCREEN all become the work area. With -screen-fullscreen 1 -window-mode
+ *    borderless (launcher) Unity's own fullscreen window then covers exactly the work area.
+ *    Safety net: Unity's top-level window is created without frame styles, WM_STYLECHANGING can't
+ *    add them back, and every move/resize is clamped to the work area. Unity creates the window with
+ *    a caption and makes it WS_POPUP later, and Wine skips WM_NCCALCSIZE when a clamped move keeps the
+ *    old size; that once left the caption's frame (3 px sides, 29 px top: a gray band) inside a
+ *    WS_POPUP window, so every clamp sets SWP_FRAMECHANGED.
+ *    NGFIX_FIT_WORKAREA=1 or =0 in the environment overrides the build's FIT_WORKAREA_DEFAULT.
  *
  * Only active in GAME_EXE (UnityCrashHandler64.exe sits in the same folder).
  * Wine loads its builtin version.dll even when one sits next to the exe, so the launcher sets
  * HKCU\Software\Wine\AppDefaults\<GAME_EXE>\DllOverrides version=native,builtin.
  * Log: %TEMP%\ngfix.log (C:\users\crossover\Temp in a WineCX prefix).
  *
- * Template from the Northgard Battlegrounds port (~/Macdows/Northgard-Mac/payload/ngfix). For another
- * game: set GAME_EXE (or -DGAME_EXE=L\"...\"), check that its UnityPlayer.dll still imports VERSION.dll.
+ * Template from the Northgard Battlegrounds port (~/Macdows/Northgard-Mac/payload/ngfix); the window
+ * part comes from the Dimraeth port (~/Macdows/Dimraeth-Mac/payload/ngfix, where it is always on).
+ * For another game: set GAME_EXE (or -DGAME_EXE=L\"...\"), check that its
+ * UnityPlayer.dll still imports VERSION.dll, and for the window the display functions patched in
+ * install() (scripts/pe/imports.py). build.sh links gdi32 for GetDeviceCaps.
  */
 #include <windows.h>
 #include <stdio.h>
@@ -28,15 +48,23 @@
 #ifndef GAME_EXE
 #define GAME_EXE L"Northgard Battlegrounds.exe"
 #endif
+#ifndef FIT_WORKAREA_DEFAULT
+#define FIT_WORKAREA_DEFAULT 0   /* 1: borderless window over the work area (see 3.) */
+#endif
 
 #define MOUSE_POINTER_ID 1
 #define MK_ANY_BUTTON (MK_LBUTTON | MK_RBUTTON | MK_MBUTTON | MK_XBUTTON1 | MK_XBUTTON2)
 #define SCAN_Q 0x10
+#define FRAME_STYLES (WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
 
 static BOOL pointer_mode;
 static DWORD hooked_threads[8];
 static int hooked_count;
 static LONG converted, wheel_converted, cursor_calls_logged;
+static BOOL fit_workarea = FIT_WORKAREA_DEFAULT;
+static HWND fit_hwnd;
+static WNDPROC fit_prev_proc;
+static LONG fits_logged;
 
 static void log_line(const char *fmt, ...)
 {
@@ -220,12 +248,191 @@ static BOOL WINAPI fake_IsMouseInPointerEnabled(void)
 static HWND (WINAPI *real_CreateWindowExW)(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HMENU,
                                            HINSTANCE, LPVOID);
 
+/* the work area of the window's monitor: below the menu bar, above the Dock (if it doesn't hide) */
+static BOOL get_work_area(HWND hwnd, RECT *rc)
+{
+    MONITORINFO mi = { sizeof(mi) };
+    if (!GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY), &mi)) return FALSE;
+    *rc = mi.rcWork;
+    return rc->right > rc->left && rc->bottom > rc->top;
+}
+
+static void fit_now(HWND hwnd)
+{
+    RECT wa;
+    if (IsIconic(hwnd) || !get_work_area(hwnd, &wa)) return;
+    SetWindowPos(hwnd, NULL, wa.left, wa.top, wa.right - wa.left, wa.bottom - wa.top,
+                 SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+}
+
+/* Unity's window procedure first, then our geometry wins: every move/resize lands on the work area */
+static LRESULT CALLBACK fit_wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+    LRESULT ret = CallWindowProcW(fit_prev_proc, hwnd, msg, wp, lp);
+
+    if (msg == WM_WINDOWPOSCHANGING && lp)
+    {
+        WINDOWPOS *pos = (WINDOWPOS *)lp;
+        RECT wa;
+        if ((pos->flags & (SWP_NOMOVE | SWP_NOSIZE)) != (SWP_NOMOVE | SWP_NOSIZE) && !IsIconic(hwnd) &&
+            pos->x > -32000 && get_work_area(hwnd, &wa))
+        {
+            int x = wa.left, y = wa.top, cx = wa.right - wa.left, cy = wa.bottom - wa.top;
+            if ((pos->x != x || pos->y != y || pos->cx != cx || pos->cy != cy) &&
+                InterlockedIncrement(&fits_logged) <= 20)
+                log_line("window %d,%d %dx%d (flags %x) -> work area %d,%d %dx%d", pos->x, pos->y, pos->cx,
+                         pos->cy, pos->flags, x, y, cx, cy);
+            pos->x = x;
+            pos->y = y;
+            pos->cx = cx;
+            pos->cy = cy;
+            /* FRAMECHANGED: Wine sends WM_NCCALCSIZE only when the size changes or this is set */
+            pos->flags = (pos->flags & ~(SWP_NOMOVE | SWP_NOSIZE)) | SWP_FRAMECHANGED;
+        }
+    }
+    else if (msg == WM_STYLECHANGING && (INT)wp == GWL_STYLE && lp)
+    {
+        STYLESTRUCT *ss = (STYLESTRUCT *)lp;
+        ss->styleNew = (ss->styleNew & ~FRAME_STYLES) | WS_POPUP;
+    }
+    else if ((msg == WM_SETTINGCHANGE && wp == SPI_SETWORKAREA) || msg == WM_DISPLAYCHANGE)
+        fit_now(hwnd);
+    return ret;
+}
+
 static HWND WINAPI fake_CreateWindowExW(DWORD ex, LPCWSTR cls, LPCWSTR name, DWORD style, int x, int y, int w,
                                         int h, HWND parent, HMENU menu, HINSTANCE inst, LPVOID param)
 {
-    HWND hwnd = real_CreateWindowExW(ex, cls, name, style, x, y, w, h, parent, menu, inst, param);
-    if (hwnd && !IS_INTRESOURCE(cls) && !lstrcmpiW(cls, L"UnityWndClass")) hook_thread(GetCurrentThreadId());
+    BOOL unity = !IS_INTRESOURCE(cls) && !lstrcmpiW(cls, L"UnityWndClass");
+    BOOL fit = unity && fit_workarea && !fit_hwnd && !(style & WS_CHILD);
+    DWORD orig_style = style;
+    HWND hwnd;
+
+    if (fit) style = (style & ~FRAME_STYLES) | WS_POPUP;   /* born borderless: no title bar, no frame */
+    hwnd = real_CreateWindowExW(ex, cls, name, style, x, y, w, h, parent, menu, inst, param);
+    if (hwnd && unity)
+    {
+        hook_thread(GetCurrentThreadId());
+        if (fit)
+        {
+            RECT wa = { 0 };
+            fit_hwnd = hwnd;
+            fit_prev_proc = (WNDPROC)SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)fit_wndproc);
+            get_work_area(hwnd, &wa);
+            log_line("window %p (style %08lx -> %08lx) kept over the work area %ld,%ld-%ld,%ld", (void *)hwnd,
+                     orig_style, style, wa.left, wa.top, wa.right, wa.bottom);
+            fit_now(hwnd);
+        }
+    }
     return hwnd;
+}
+
+/* --- the monitor as UnityPlayer sees it: the size of the work area -------------------------------
+ * ngfix's own calls below go through ngfix's imports, so they reach the real functions. */
+static LONG display_logged;
+
+static BOOL primary_monitor(MONITORINFO *mi)
+{
+    POINT origin = { 0, 0 };
+    mi->cbSize = sizeof(*mi);
+    return GetMonitorInfoW(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY), mi);
+}
+
+static BOOL WINAPI fake_GetMonitorInfoW(HMONITOR mon, LPMONITORINFO mi)
+{
+    BOOL ret = GetMonitorInfoW(mon, mi);
+    if (ret && mi)
+    {
+        if (InterlockedIncrement(&display_logged) <= 30)
+            log_line("GetMonitorInfo: monitor %ld,%ld-%ld,%ld reported as %ld,%ld-%ld,%ld", mi->rcMonitor.left,
+                     mi->rcMonitor.top, mi->rcMonitor.right, mi->rcMonitor.bottom, mi->rcWork.left, mi->rcWork.top,
+                     mi->rcWork.right, mi->rcWork.bottom);
+        mi->rcMonitor = mi->rcWork;
+    }
+    return ret;
+}
+
+static BOOL WINAPI fake_GetMonitorInfoA(HMONITOR mon, LPMONITORINFO mi)
+{
+    BOOL ret = GetMonitorInfoA(mon, mi);
+    if (ret && mi) mi->rcMonitor = mi->rcWork;
+    return ret;
+}
+
+struct enum_monitors_ctx { MONITORENUMPROC proc; LPARAM lp; };
+
+static BOOL CALLBACK enum_monitor_as_work_area(HMONITOR mon, HDC hdc, LPRECT rc, LPARAM lp)
+{
+    struct enum_monitors_ctx *ctx = (struct enum_monitors_ctx *)lp;
+    MONITORINFO mi = { sizeof(mi) };
+    RECT r = *rc;
+    if (GetMonitorInfoW(mon, &mi)) r = mi.rcWork;
+    return ctx->proc(mon, hdc, &r, ctx->lp);
+}
+
+static BOOL WINAPI fake_EnumDisplayMonitors(HDC hdc, LPCRECT clip, MONITORENUMPROC proc, LPARAM lp)
+{
+    struct enum_monitors_ctx ctx = { proc, lp };
+    if (hdc || !proc) return EnumDisplayMonitors(hdc, clip, proc, lp);
+    return EnumDisplayMonitors(NULL, clip, enum_monitor_as_work_area, (LPARAM)&ctx);
+}
+
+/* a display mode the size of the primary monitor becomes the size of its work area */
+static void mode_as_work_area(DWORD *w, DWORD *h, DWORD mode)
+{
+    MONITORINFO mi;
+    DWORD mw, mh, ww, wh;
+    if (!primary_monitor(&mi)) return;
+    mw = mi.rcMonitor.right - mi.rcMonitor.left;
+    mh = mi.rcMonitor.bottom - mi.rcMonitor.top;
+    ww = mi.rcWork.right - mi.rcWork.left;
+    wh = mi.rcWork.bottom - mi.rcWork.top;
+    if (*w != mw || *h != mh || (ww == mw && wh == mh)) return;
+    if (InterlockedIncrement(&display_logged) <= 30)
+        log_line("EnumDisplaySettings(%ld): %lux%lu reported as %lux%lu", (long)mode, *w, *h, ww, wh);
+    *w = ww;
+    *h = wh;
+}
+
+static BOOL WINAPI fake_EnumDisplaySettingsW(LPCWSTR dev, DWORD mode, DEVMODEW *dm)
+{
+    BOOL ret = EnumDisplaySettingsW(dev, mode, dm);
+    if (ret && dm) mode_as_work_area(&dm->dmPelsWidth, &dm->dmPelsHeight, mode);
+    return ret;
+}
+
+static BOOL WINAPI fake_EnumDisplaySettingsA(LPCSTR dev, DWORD mode, DEVMODEA *dm)
+{
+    BOOL ret = EnumDisplaySettingsA(dev, mode, dm);
+    if (ret && dm) mode_as_work_area(&dm->dmPelsWidth, &dm->dmPelsHeight, mode);
+    return ret;
+}
+
+static int WINAPI fake_GetSystemMetrics(int index)
+{
+    MONITORINFO mi;
+    if ((index == SM_CXSCREEN || index == SM_CYSCREEN) && primary_monitor(&mi))
+        return index == SM_CXSCREEN ? mi.rcWork.right - mi.rcWork.left : mi.rcWork.bottom - mi.rcWork.top;
+    return GetSystemMetrics(index);
+}
+
+static int WINAPI fake_GetDeviceCaps(HDC hdc, int index)
+{
+    int ret = GetDeviceCaps(hdc, index);
+    MONITORINFO mi;
+    if ((index == HORZRES || index == VERTRES || index == DESKTOPHORZRES || index == DESKTOPVERTRES) &&
+        primary_monitor(&mi))
+    {
+        BOOL vertical = index == VERTRES || index == DESKTOPVERTRES;
+        int full = vertical ? mi.rcMonitor.bottom - mi.rcMonitor.top : mi.rcMonitor.right - mi.rcMonitor.left;
+        int work = vertical ? mi.rcWork.bottom - mi.rcWork.top : mi.rcWork.right - mi.rcWork.left;
+        if (ret == full)
+        {
+            if (InterlockedIncrement(&display_logged) <= 30) log_line("GetDeviceCaps(%d): %d reported as %d", index, ret, work);
+            ret = work;
+        }
+    }
+    return ret;
 }
 
 /* point UnityPlayer.dll's import of dll!name at func; returns the previous target */
@@ -278,18 +485,37 @@ static void install(void)
         real_ShowCursor = ShowCursor;
     if (!(real_SetCursor = patch_import(unity, "USER32.dll", "SetCursor", fake_SetCursor)))
         real_SetCursor = SetCursor;
+    if (fit_workarea)
+    {
+        static const struct { const char *dll, *name; void *func; } display[] =
+        {
+            { "USER32.dll", "GetMonitorInfoW", fake_GetMonitorInfoW },
+            { "USER32.dll", "GetMonitorInfoA", fake_GetMonitorInfoA },
+            { "USER32.dll", "EnumDisplayMonitors", fake_EnumDisplayMonitors },
+            { "USER32.dll", "EnumDisplaySettingsW", fake_EnumDisplaySettingsW },
+            { "USER32.dll", "EnumDisplaySettingsA", fake_EnumDisplaySettingsA },
+            { "USER32.dll", "GetSystemMetrics", fake_GetSystemMetrics },
+            { "GDI32.dll", "GetDeviceCaps", fake_GetDeviceCaps },
+        };
+        int i;
+        for (i = 0; i < ARRAYSIZE(display); i++)
+            log_line("patch %s: %s", display[i].name,
+                     patch_import(unity, display[i].dll, display[i].name, display[i].func) ? "ok" : "missing");
+    }
 }
 
 BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, void *reserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
-        WCHAR exe[MAX_PATH], *name;
+        WCHAR exe[MAX_PATH], *name, env[8];
         DisableThreadLibraryCalls(inst);
         GetModuleFileNameW(NULL, exe, MAX_PATH);
         name = wcsrchr(exe, '\\');
         if (lstrcmpiW(name ? name + 1 : exe, GAME_EXE)) return TRUE;
-        log_line("ngfix loaded");
+        if (GetEnvironmentVariableW(L"NGFIX_FIT_WORKAREA", env, ARRAYSIZE(env)))
+            fit_workarea = env[0] != '0';
+        log_line("ngfix loaded (work-area window: %s)", fit_workarea ? "on" : "off");
         install();
     }
     return TRUE;

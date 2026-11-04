@@ -72,3 +72,15 @@ shim `wwpfix` as an app-local `xinput1_3.dll` (imported by ordinal 2, forwarded 
 Tests ran as scripted quick battles with a fake cursor read by the shim from a file (`WWPFIX_CURSOR_FILE`), clicks
 injected as `WM_SETCURSOR` messages, and Alt+Q through SendInput, so the user's mouse was never touched. Each run
 was announced, because the game window still shows.
+
+## Dimraeth: works (kit: `~/Macdows/Dimraeth-Mac`)
+Unity 6000.0 IL2CPP, Direct3D 11, Windows Steam, Steam Cloud saves, early-access dev builds. The kit was
+cloned from the Northgard kit on the PC, from a copy older than the Northgard fixes made on the Mac.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| (avoided) | the clone lacked the `Contents/bin` symlink, the nsiproxy patch and ngfix | diff `install.sh` and the launcher against the installed Northgard app and port the fixes before the first run; no transport-error dialog then |
+| `Curl error 35: Cert verify failed ... UnityTls error code: 7` | the game's news-feed host has no DNS record any more; the PC's log has `Curl error 6` at the same point | none, harmless |
+| Menu bar slides over the game; the user wants a window between the menu bar and the Dock | Unity's FullScreenWindow covers the whole screen | ngfix shows UnityPlayer a work-area-sized monitor + `-screen-fullscreen 1 -window-mode borderless` (`unity.md`) |
+| Gray band under the menu bar, button hitboxes below the buttons | first try clamped Unity's window: the caption's frame stayed inside the WS_POPUP window, and Unity kept rendering 1440×900 into 1440×870 | frame styles stripped at creation + SWP_FRAMECHANGED; the work-area monitor instead of a size clamp |
+| The Air gets warm while playing | ~11 W for the whole Mac on battery (GPU ~60%, the game ~1.1 cores, 1440×870 on a 60 Hz screen), thermal state fair → nominal, no throttling, ~9 GB footprint (unified memory) | normal for a fanless Air at this load; a frame cap or lower settings should help (not tried) |

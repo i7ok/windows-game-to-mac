@@ -3,6 +3,6 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 x86_64-w64-mingw32-gcc -O2 -Wall -shared -D_WIN32_WINNT=0x0A00 -o version.dll ngfix.c version.def \
-    -luser32 -static-libgcc -Wl,--kill-at
+    -luser32 -lgdi32 -static-libgcc -Wl,--kill-at
 x86_64-w64-mingw32-strip version.dll
 echo "built $(pwd)/version.dll"

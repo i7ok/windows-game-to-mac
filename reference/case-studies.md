@@ -49,3 +49,26 @@ prefix (`~/.wine-fod`, `game/working`) is separate from the app's.
 | The REMASTER tab's widgets doubled around the cursor | own bug: the wide UI cut the cursor out of the frame after our page was pasted in | cursor first, then the page |
 Lesson: for old 2D games an own wrapper DLL gives a better result than fighting Wine's ddraw, and it
 doubles as a test harness.
+
+## Worms World Party Remastered: works (kit: `~/Macdows/Worms-Mac`)
+2015 remaster of a 2001 game, 32-bit MFC, Direct3D 9 used as a screen: the game draws every frame in software
+into a 32-bit buffer and uploads it as one texture. No Steam client in the prefix.
+Stack: Gcenx Wine 11.0_1 in the bundle with FoD's `wow64cpu` patch, wined3d on OpenGL, and the
+shim `wwpfix` as an app-local `xinput1_3.dll` (imported by ordinal 2, forwarded to Wine's xinput1_4).
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Nothing on screen, CreateDevice `0x8876086a` (D3DERR_NOTAVAILABLE) in a loop | the menus want exclusive fullscreen 640x480; the Mac has no such mode | `EmulateModeset=y` (X11 Driver key, read by win32u for all drivers) |
+| The game takes the whole screen and the Mac is unusable | exclusive fullscreen; a window covering the screen is lifted above everything | windowed swap chain on the game's window in the work area, emulated mode with the Mac's aspect to scale small sizes, coordinate translation, black backdrop (`input-window-quit.md`) |
+| Clicks in the menus do nothing, the main window beeps | the menus are invisible MFC dialogs that never paint, so they are click-through on the Mac; clicks hit the disabled D3D window | forward `WM_SETCURSOR(HTERROR)` clicks to the dialog's child under the cursor |
+| White screen after the setup dialog | the dialog painted white once and became opaque; an empty window region does nothing in winemac | dialogs layered with alpha 0 (clicks still forwarded) |
+| The shim's backdrop became the game's main window | MFC's CBT hook attaches the CWnd to the first window created on the thread | create the backdrop on the shim's own thread |
+| Battle zoomed and cropped | the game reuses the parameters we changed for its Reset (Windowed=TRUE), and the saved battle size was the full screen | treat every CreateDevice/Reset as a new size; default battle size = the work area (1440x870) |
+| ⌘Q sometimes ignored; ⌘K wanted too, also on the Russian layout | the battle loop doesn't always pump messages; its window ignores WM_CLOSE | `WH_KEYBOARD_LL` in the shim's thread, scan codes 0x10/0x25 with Alt/Command, WM_CLOSE + 3 s watchdog |
+| Dock says "wine" | the game process is started from Wine's preloader | `CFProcessPath` + `LSUIElement` (`app-bundle.md`) |
+| Launcher exits at once ("already running") | `pgrep -if 'w2\.exe'` matched Claude's own shell | match `^[a-z]:\\...\\w2.exe`: Wine puts the Windows path first in argv |
+| Battle 12–14 fps at 1440x870, menus ~45; freezes of 10–15 s on the CPU's turn | 85% of a frame was the copy into the texture: one call per pixel to a fade function with x87 code (slow under Rosetta), even with no fade on | in-memory patch: `memcpy` rows while no fade runs, the game's code during fades, checked pixel-exact → 60–80 fps, no freezes (`dll-and-patching.md`) |
+| 130 fps in the menus, 80 in battle on a 60 Hz screen | wined3d's windowed swap chain on the Mac ignores the game's vsync | the shim holds each `Present` to the refresh period while the game asks for vsync |
+Tests ran as scripted quick battles with a fake cursor read by the shim from a file (`WWPFIX_CURSOR_FILE`), clicks
+injected as `WM_SETCURSOR` messages, and Alt+Q through SendInput, so the user's mouse was never touched. Each run
+was announced, because the game window still shows.

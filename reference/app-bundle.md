@@ -59,6 +59,14 @@ offline sandbox.
 - Dock while running: the launcher icon (ours) briefly, then `Steam.exe`/`steam.exe` and
   `<Game>.exe`, each with the icon Wine sets from the exe/window. Document it in the README as a
   Wine trait.
+- Gcenx Wine 11 without Steam (Worms, FoD): the Dock and menu bar said "wine". `wine game.exe` runs `start.exe`,
+  which starts the 32-bit game as a new process from `lib/wine/x86_64-unix/wine` (the preloader), and
+  CoreFoundation finds the main bundle from that path, which is not ours. Fix: `export
+  CFProcessPath="$CONTENTS/MacOS/<launcher>"` before exec'ing Wine (CoreFoundation's override of the process
+  path), and `LSUIElement` in Info.plist. Every Wine process then registers as our bundle. Helpers stay out of the
+  Dock, and winemac makes the process with a window a regular app, with our name and icon. Side effect:
+  LaunchServices counts the app as running while Wine helpers linger after a quit, so a click on the icon does
+  nothing for a few seconds. Symlinking the preloader into `Contents/MacOS` does not work.
 - Wine's own app menu Quit is ⌥⌘Q. Plain ⌘Q goes to the game (as Alt+Q in WineCX) → handle it in a
   shim (`reference/input-window-quit.md`).
 

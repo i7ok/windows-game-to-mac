@@ -45,6 +45,24 @@ exe from `/var/folders/.../winetemp-*`. `lsappinfo list` shows how macOS registe
 5. Only then ask the user to try. Tell them exactly what to do (click X, press ⌘Q) and what you will
    watch. Watch with a background loop (`run_in_background`) on the log or process, not by polling.
 
+## A slow game: measure, then sample (Worms)
+1. Count calls and time per frame in the shim: the D3D methods (vtable hooks on the device, textures, surfaces)
+   and the Win32 calls the game makes every frame (IAT hooks: PeekMessage, GetTickCount, timeGetTime,
+   QueryPerformanceCounter, Sleep...). If they add up to a few ms, the game's own code is the cost. Under Wine on
+   macOS `GetThreadTimes` looks process-wide (it exceeded 100% of the game thread's time), so don't read it as
+   one thread's load.
+2. Sample the game thread from a shim thread: `SuspendThread`, `GetThreadContext` (Eip), `ResumeThread` about
+   1000 times a second. Count Eip in 16-byte buckets, and for samples outside the exe also the first return
+   address into the exe's code found on the stack (who called). Every 10 s log the top buckets as
+   module+offset. Then disassemble them (`i686-w64-mingw32-objdump -d -M intel --start-address=...`) and name
+   the imports with `scripts/pe/iat.py`. Sampling costs about 20% of the frame rate.
+3. What it found: 85% of a Worms battle frame was one per-pixel function using x87 (`fld/fcomp/fnstsw` per pixel,
+   `fldcw/fistp` in its blend path). x87 is slow under Rosetta 2, so 2001-era software renderers can be
+   CPU-bound where a PC never was. A message loop spinning while it waits (thousands of PeekMessage +
+   GetTickCount per frame) shows up as win32u/ntdll, with the loop's return address. Worms' 10–15 s freezes on
+   the CPU's turn were of that kind and went away once frames were fast.
+4. Change one thing and compare in the same scripted run: frames/s, the slowest frame, the sampler's top.
+
 ## Shell pitfalls (Claude's Bash tool runs zsh)
 - `kill $pids` with several pids fails ("illegal pid"). Use `${=pids}` or a bash script.
 - `ps … | grep pattern` matches your own `zsh -c` (its args contain the pattern). Use `ps -Ao comm`

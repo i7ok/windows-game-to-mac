@@ -40,6 +40,27 @@ was found.
   system arrow over the game. A borderless window over the **work area** (`GetMonitorInfo rcWork`: below the menu
   bar, above the Dock) avoids it and behaves like a normal Mac window (FoD's "fullscreen" under Wine).
   `CaptureDisplaysForFullscreen=y` (Mac Driver key) would capture the displays instead; not tried.
+- No 640x480 (or other old) mode on the Mac: `HKCU\Software\Wine\X11 Driver\EmulateModeset=y` (win32u reads it
+  for every driver) adds the usual 4:3 and 16:10 modes, and a mode switch scales the image. It works with winemac.
+  Wine's virtual desktop (`explorer /desktop=`) does not come up with winemac.
+- Exclusive fullscreen D3D9 as a borderless window (Worms): turn the game's CreateDevice/Reset into
+  `Windowed=TRUE` on its own window, placed in the work area. Pick an emulated mode with the Mac's aspect that
+  scales the game's size up (640x480 menus → 840x525, ×1.71). Translate everything the game asks about screen
+  coordinates (cursor, window rects, ClientToScreen, monitor/work area, `GetSystemMetrics`) so it still sees its
+  screen at 0,0. Put a black backdrop window behind it. ⌘Tab, the Dock and the menu bar then behave normally.
+- **Never-painted Wine windows are click-through on the Mac**: clicks fall to the window behind. MFC games that
+  keep invisible dialogs (owner-drawn buttons, found by GetCursorPos) over a D3D window lose every click to the
+  main window. That window is disabled during the modal dialog, so it gets `WM_SETCURSOR(HTERROR, button)` and
+  beeps. Fix in the shim: subclass the main window, and on that message post the click to the dialog's
+  visible, enabled child under the cursor (`WM_NCHITTEST` not `HTTRANSPARENT`), emulating double clicks.
+- To keep such a window invisible after it has painted (it turned white and opaque): `WS_EX_LAYERED` +
+  `SetLayeredWindowAttributes(alpha 0)`. That makes it invisible and click-through, so the clicks still need
+  forwarding. `SetWindowRgn` with an empty region does nothing in winemac (it counts as no region).
+- MFC attaches the CWnd being created to the first window created on that thread (CBT hook in `CreateEx`).
+  Create the shim's own windows (backdrop) on another thread.
+- ⌘Q that always works: a `WH_KEYBOARD_LL` hook in the shim's own thread sees Alt+scan 0x10 even when the
+  game's loop is busy. Post WM_CLOSE, and end the process if it is still alive 3 s later (Worms' battle window
+  ignores WM_CLOSE).
 - A fullscreen game grabs the user's screen. The users here dislike tests that take over the screen.
   Announce every launch that shows windows, prefer windowed/background tests, and never drive the real
   mouse while they are at the computer (FoD used scripted input inside its own DLL instead).

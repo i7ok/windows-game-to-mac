@@ -38,6 +38,19 @@ table against the original after building.
 - Install hooks lazily on the right thread: at `CreateWindowExW` of the game's window class (IAT-hook it)
   or when the engine calls the API you fake.
 
+## Replacing a hot function of the game in memory (Worms' frame copy)
+For code that is slow under Rosetta (see `diagnostics.md`), never for DRM code, and with the game files untouched:
+1. In DllMain, before the code first runs, check that the exe sits at its preferred base and that the
+   function's bytes, and those of the functions it relies on, match exactly. Otherwise log it and change nothing.
+2. Write `jmp rel32` over its first 5 bytes (VirtualProtect, FlushInstructionCache) to a C function with the
+   same convention: MSVC's `__fastcall`/`__thiscall` are GCC's `__attribute__((fastcall))`/`((thiscall))`.
+   Check the compiled code (`objdump` of the `.o`): arguments in ecx/edx, callee-saved registers, `ret` vs `ret N`.
+3. Do the common case fast and leave the rare cases to the game's own functions, called through casts, so
+   behaviour stays exact. Worms: the frame copy's per-pixel fade depends only on the fade's state, so while no
+   fade runs it is `memcpy` per row; fades still go pixel by pixel through the game's code.
+4. Prove it: a self-check switch compares the output with the game's own function every N frames (Worms:
+   0 differing pixels over 1.25M per frame), and an off switch keeps the game's code.
+
 ## Byte-patching a Wine file in our bundle
 1. Find the code: `strings`/`otool -tV` (Mach-O unix libs) or `x86_64-w64-mingw32-objdump -d` (PE).
    For PE, `scripts/pe/xref.py` finds code referencing a string, `scripts/pe/callsites.py` finds calls to

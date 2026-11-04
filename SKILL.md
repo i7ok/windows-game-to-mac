@@ -102,6 +102,12 @@ what to do while a background loop watches the logs.
 | Two cursors | game calls ShowCursor(0); check `trace+cursor` / shim log |
 | System cursor back after ⌘Tab or a click at the top edge | winemac's `[NSCursor hide]` counter; keep ShowCursor(0) from Wine, use a transparent cursor (`input-window-quit.md`) |
 | Menu bar slides over a fullscreen game at the top edge | borderless window over the work area instead of the whole screen |
+| D3D9 game wants fullscreen 640x480, CreateDevice fails `0x8876086a` in a loop | the Mac has no such mode → `HKCU\Software\Wine\X11 Driver\EmulateModeset=y` |
+| Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
+| An invisible dialog turns white and hides the game | it painted once and became opaque; an empty window region does nothing in winemac → layered, alpha 0 |
+| Dock and menu bar say "wine" (Gcenx Wine) | `CFProcessPath` = the bundle's executable + `LSUIElement` (`app-bundle.md`) |
+| Old 2D game slow, CPU-bound, but D3D/Win32 calls are cheap | sample the game thread; per-pixel x87 code is slow under Rosetta → patch the hot function in memory (`diagnostics.md`, `dll-and-patching.md`) |
+| Frame rate far above the display's (vsync ignored in a windowed swap chain) | hold `Present` to the refresh period in the shim while the game asks for vsync |
 | Window Retina-sized or off-screen | `RetinaMode=n`, `-screen-width/-height` |
 | First launch of a fresh big bundle hangs ~2 min | XProtect scanning it, once per build |
 | SecuROM "DSS"/"Suspected Virtual Operating System" | DRM vs Rosetta/LDT → dead end, explain options |

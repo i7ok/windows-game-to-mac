@@ -67,6 +67,24 @@ offline sandbox.
   Dock, and winemac makes the process with a window a regular app, with our name and icon. Side effect:
   LaunchServices counts the app as running while Wine helpers linger after a quit, so a click on the icon does
   nothing for a few seconds. Symlinking the preloader into `Contents/MacOS` does not work.
+- With Windows Steam (WineCX, Dimraeth): one Dock icon with the app's name and icon, Steam hidden →
+  `assets/dockfix/` (a dylib the launcher puts in `DYLD_INSERT_LIBRARIES`, settings in
+  `Contents/Resources/dockfix.conf`, plus `Contents/Helpers/Steam.app` with LSUIElement as Steam's identity).
+  The game process gets `CFProcessPath` = our launcher and keeps the bundle icon (winemac's
+  `setApplicationIconImage:` with the square exe icon is ignored); Steam's processes stay out of the Dock until
+  one of their windows asks the user (login, cloud conflict), then show as "Steam"; other helpers are forced to
+  Accessory; tray icons are taken off the menu bar. Facts behind the design:
+  - in Wine's Windows processes (started via wine-preloader) dyld maps inserted libraries but **never runs their
+    initializers** → no constructor; interpose `dlopen` instead: decide the role at the first call (before ntdll.so
+    brings in CoreFoundation, so `CFProcessPath` can still be set), swizzle AppKit right after `dlopen(winemac.so)`;
+  - `objc_addLoadImageFunc` callbacks hold the runtime lock: any objc_* call there traps (SIGILL);
+  - DYLD_* reach Wine only when exported inside the bash launcher (SIP prunes them on the way into /bin/bash),
+    and WineCX passes them to every child;
+  - the launcher should not `exec` Wine: keep the LaunchServices-started process (its bouncing icon) until the
+    game process exists, then exit, so the icon goes from the click straight to the game's.
+  An earlier constructor-based version made Steam reject its web helper ("Unexpected Transport Error" loop) in a
+  real launch; never reproduced, and the dlopen design has not shown it. Test Steam changes in an APFS clone of the
+  prefix without `config`/`userdata` (keep `AppData/LocalLow`, or steam.exe crashes): it runs to the login window.
 - Wine's own app menu Quit is ⌥⌘Q. Plain ⌘Q goes to the game (as Alt+Q in WineCX) → handle it in a
   shim (`reference/input-window-quit.md`).
 

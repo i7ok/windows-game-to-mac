@@ -109,6 +109,7 @@ what to do while a background loop watches the logs.
 | Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
 | An invisible dialog turns white and hides the game | it painted once and became opaque; an empty window region does nothing in winemac → layered, alpha 0 |
 | Dock and menu bar say "wine" (Gcenx Wine) | `CFProcessPath` = the bundle's executable + `LSUIElement` (`app-bundle.md`) |
+| Dock shows `Game.exe`/`steamwebhelper.exe` with square exe icons (WineCX + Steam) | `assets/dockfix`: dlopen-interposing dylib, game as the app, Steam hidden until it asks (`app-bundle.md`) |
 | Old 2D game slow, CPU-bound, but D3D/Win32 calls are cheap | sample the game thread; per-pixel x87 code is slow under Rosetta → patch the hot function in memory (`diagnostics.md`, `dll-and-patching.md`) |
 | Frame rate far above the display's (vsync ignored in a windowed swap chain) | hold `Present` to the refresh period in the shim while the game asks for vsync |
 | Window Retina-sized or off-screen | `RetinaMode=n`, `-screen-width/-height` |
@@ -136,3 +137,4 @@ what to do while a background loop watches the logs.
 | `scripts/wine/appwine` | Run a helper with a wrapped game's own Wine and prefix |
 | `scripts/wine/patch_nsiproxy.sh` | The Steam transport fix for WineCX 24.0.7_7 |
 | `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy), optional borderless work-area window; adapt per game |
+| `assets/dockfix/` | macOS dylib for the Dock: game under the app's name/icon, Steam hidden until it asks, no tray icons |

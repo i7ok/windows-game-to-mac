@@ -31,9 +31,13 @@ dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-
   per game move `steamapps/common/<dir>` + `appmanifest_<appid>.acf`, copy `userdata/<account>/<appid>`
   (Cloud cache) and `AppData/LocalLow/<studio>/<game>`, and carry its HKCU key (Unity PlayerPrefs) with
   `reg export`/`reg import` under the same engine.
-- Verified on an M1 (Nov 2026): Steam auto-start and silent login from a game click, Dock identities,
-  an icon click on a running Steam → its window, Cmd+Q in Steam → clean shutdown with the login kept.
-  Not yet: a game run end to end from the shared Steam (the account was in-game elsewhere).
+- Verified on an M1 (Nov 2026) with two Unity games: a game click with Steam closed starts Steam
+  silently and the game ~40 s later; a game started while the user's Steam window is open comes up in
+  seconds; each game shows as its own app; Cloud uploads on exit; Steam closes after a game that
+  started it and stays when the user opened it; an icon click on a running Steam brings its window;
+  Cmd+Q in Steam closes it cleanly with the login kept. Dock → Quit (the terminate hook) is untested.
+- Steamworks may write `dumps/assert_<game>.exe_*.dmp` (steamerrorreporter64.exe) soon after a game
+  starts; seen with and without the shared Steam, the game runs on.
 
 ## Install and first start
 1. Silent install: `wine SteamSetup.exe /S`, then `wineserver -w`. `Steam.exe` lands in

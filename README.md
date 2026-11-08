@@ -34,8 +34,10 @@ Windows game on my Mac" or "clicks don't work in the game", in any language. Cla
 the game can run at all (DirectX version, engine, copy protection, Steam), then builds a kit: installer,
 launcher and docs.
 
-The kit template, `~/Macdows/Northgard-Mac`, is not in this repository because it holds game files and
-Wine builds. Without it, Claude builds the kit from `reference/app-bundle.md`.
+Kits are not in this repository: they hold Wine builds and game files. Steam games share one Windows Steam
+app (kit `~/Macdows/WindowsSteam-Mac`) and each gets a small game kit; games without Steam get a
+self-contained kit with their own Wine. Without them, Claude builds the kits from `reference/app-bundle.md`
+and `reference/steam-in-wine.md`.
 
 ## What's inside
 
@@ -55,6 +57,7 @@ Wine builds. Without it, Claude builds the kit from `reference/app-bundle.md`.
 | `scripts/pe/` | Python tools for Windows binaries (imports, call sites, string references) |
 | `scripts/wine/` | Running the helpers in a game's Wine environment; the `nsiproxy.so` patch for Steam |
 | `assets/ngfix/` | Input shim for Unity 6 games (clicks, scrolling, ⌘Q) |
+| `assets/dockfix/` | macOS dylib for the Dock: each game as its own app, Windows Steam shown only with a window up, its icon click and Quit handled |
 | `.claude-plugin/` | Manifests of the plugin and the `macdows` marketplace |
 
 ## Updating the skill

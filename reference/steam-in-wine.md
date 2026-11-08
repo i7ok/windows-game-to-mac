@@ -5,6 +5,36 @@ running **Windows** Steam client logged into the user's account. Mac Steam can't
 process. Steam Cloud saves then sync with the PC. Copying the game from the PC plus its
 `appmanifest_<appid>.acf` into `steamapps/` makes Steam treat it as installed (it may still patch it).
 
+## One Windows Steam for all games
+A game reaches Steam only from inside Steam's own prefix: `steam_api` finds the client through the
+prefix's registry (`HKCU\Software\Valve\Steam\ActiveProcess`) and talks to it over Windows IPC that lives
+in one wineserver. So instead of a Steam inside every game app, all Steam games share one prefix:
+`~/Macdows/WindowsSteam-Mac` builds `Windows Steam.app` (Wine, DXMT, dockfix, Steam, every game), and
+each game gets a ~1 MB app (icon, `game.conf`, shims) whose executable only runs
+`WindowsSteam --launch <its .app>`. Like a Steam shortcut on Windows, a game started while Steam is
+closed starts it. Model game kit: `~/Macdows/Dimraeth-Mac` (`game.conf` with name, appid, exe, dir, args,
+dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-game.sh`.
+- `steam [-silent] -applaunch <appid> <args>` is the same call whether Steam runs or not: a running
+  Steam gets it forwarded.
+- A game started by a running Steam inherits **Steam's** environment, not its own app's. Per-game
+  settings go to `HKCU\Software\Wine\AppDefaults\<exe>` and to the game folder (shims); Steam-wide env
+  applies to every game and takes effect when Steam starts.
+- Closing: a Steam that a game started shuts down after the last game; one the user opened stays.
+- All games of one Steam run on one Wine build. Another engine needs another prefix (one more login);
+  move `steamapps` over instead of downloading again.
+- Steam can stop a launch to ask the user, and only the user answers: "your account is playing <game>
+  on another computer" (`KickingOtherSession` in `console_log.txt`), interstitials, cloud conflicts. A
+  cancel writes no line of its own: it shows as `SlowJSMethodCall Apps.CancelGameAction` (console_log)
+  and, for Auto-Cloud games, `[AppID N] Starting sync (up,AC Exit,)` (cloud_log). Bound the launcher's
+  wait: while the process LaunchServices started for a game app lives, clicks on its icon do nothing.
+- Moving per-game apps over: adopt one logged-in prefix of the same engine (`install.sh --adopt`), then
+  per game move `steamapps/common/<dir>` + `appmanifest_<appid>.acf`, copy `userdata/<account>/<appid>`
+  (Cloud cache) and `AppData/LocalLow/<studio>/<game>`, and carry its HKCU key (Unity PlayerPrefs) with
+  `reg export`/`reg import` under the same engine.
+- Verified on an M1 (Nov 2026): Steam auto-start and silent login from a game click, Dock identities,
+  an icon click on a running Steam → its window, Cmd+Q in Steam → clean shutdown with the login kept.
+  Not yet: a game run end to end from the shared Steam (the account was in-game elsewhere).
+
 ## Install and first start
 1. Silent install: `wine SteamSetup.exe /S`, then `wineserver -w`. `Steam.exe` lands in
    `C:\Program Files (x86)\Steam`.

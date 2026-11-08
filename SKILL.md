@@ -2,8 +2,9 @@
 name: windows-game-to-mac
 description: >
   Port, wrap or fix a Windows-only PC game so it runs on an Apple Silicon Mac as a native-looking .app
-  with a free Wine stack (WineCX or Gcenx Wine, DXMT, GStreamer). Covers Windows Steam inside Wine, the
-  install kit (install.sh, launcher, icon, Steam closing with the game), and debugging: "could not exec
+  with a free Wine stack (WineCX or Gcenx Wine, DXMT, GStreamer). Covers Windows Steam inside Wine (one
+  shared Windows Steam app that any game starts, like a Steam shortcut on Windows), the install kits
+  (install.sh, launcher, icon), and debugging: "could not exec
   the wine loader", Steam "Unexpected Transport Error 0x3008" or no login window, black or transparent
   game windows, Unity games ignoring clicks or scroll, Cmd+Q not quitting, double cursor, DRM and
   anti-cheat dead ends. Use whenever someone wants to play, run, install, port or move a Windows game
@@ -16,14 +17,17 @@ description: >
 
 Goal: a Windows game the user owns starts on their Apple Silicon Mac from its own `.app` (name, icon,
 Launchpad) with one click and plays normally (graphics, video, mouse, keyboard, scroll, saves). It quits
-with ⌘Q, and anything it needs (Windows Steam) starts and stops with it. Everything comes from free
-components. A real port is impossible without source code, so this is a Wine wrapper done well.
+with ⌘Q. A game that needs Windows Steam starts the shared Windows Steam app if it isn't running, like
+a Steam shortcut on Windows. Everything comes from free components. A real port is impossible without
+source code, so this is a Wine wrapper done well.
 
 This skill holds what was learned porting Northgard Battlegrounds (works), Test Drive Unlimited 2
 (blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster) and Dimraeth (Unity 6, a
-clone of the Northgard kit). The working template is
-the Northgard kit, `~/Macdows/Northgard-Mac`. Copy it for a new game. The skill doesn't ship it (it holds
-game files and Wine builds), so on a Mac without it build the kit from `reference/app-bundle.md`.
+clone of the Northgard kit). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
+builds `Windows Steam.app` (Wine, DXMT, Steam and every Steam game), and each game gets a small game kit
+and app (model: `~/Macdows/Dimraeth-Mac`). Games without Steam get a self-contained kit with their own
+Wine (`~/Macdows/Worms-Mac`). Kits aren't in this repository (Wine builds, game files): on a Mac without
+them, build them from `reference/app-bundle.md` and `reference/steam-in-wine.md`.
 
 ## Working with the user
 - Answer in the user's language and write user docs (`README.md`) in it; `CLAUDE.md` and code comments
@@ -48,17 +52,21 @@ input stack. Then pick a route. Stop early on SecuROM, StarForce, kernel anti-ch
 explain the options. Record the verdict in the kit's `CLAUDE.md`.
 
 ### 2. Kit and bundle → `reference/app-bundle.md`, `reference/stack.md`
-Start from the Northgard kit: pinned components in `cache/`, `install.sh`, and the launcher with
-prefix/engine-version guard, settings.sh, logs, watcher and modes. Install GStreamer before the prefix
+A Steam game: a game kit (`game.conf`, `payload/Info.plist`, icon, shims, `game/`) installed with
+`WindowsSteam-Mac/add-game.sh`; install Windows Steam first if it's missing. A game without Steam: a
+self-contained kit with pinned components in `cache/`, `install.sh`, and the launcher with
+prefix/engine-version guard, settings.sh, logs and modes. Install GStreamer before the first prefix
 exists, through the native password dialog. For the WineCX engine, add the `Contents/bin -> MacOS`
-symlink and run `scripts/wine/patch_nsiproxy.sh` on its `nsiproxy.so`. Both are already in the
-Northgard `install.sh`. A kit cloned elsewhere (on the user's PC, say) from an older copy misses fixes
-made on the Mac later: diff its `install.sh` and launcher against the installed working app first.
+symlink and run `scripts/wine/patch_nsiproxy.sh` on its `nsiproxy.so` (both are in the Windows Steam
+`install.sh`). A kit cloned elsewhere (on the user's PC, say) from an older copy misses fixes made on the
+Mac later: diff its scripts against the installed working app first.
 
 ### 3. Steam (Steamworks games) → `reference/steam-in-wine.md`
-Silent install, `steam_dev.cfg`, first-start updates (~5–10 min), login by the user, `-silent
--applaunch <appid>` afterwards. Never `kill -9` a logged-in Steam. The game copied from the PC plus its
-`appmanifest_<appid>.acf` saves the download.
+One Windows Steam for all games: silent install, `steam_dev.cfg`, first-start updates (~5–10 min), one
+login by the user, then every game app runs `steam -silent -applaunch <appid>` in that prefix. Per-game
+settings go to AppDefaults and the game folder, never env (Steam's children inherit Steam's env).
+Never `kill -9` a logged-in Steam. The game copied from the PC plus its `appmanifest_<appid>.acf` saves
+the download.
 
 ### 4. Make the game behave
 - Graphics: D3D11 → DXMT in the Wine tree (both arches). Check the game log for the D3D device line.
@@ -109,7 +117,9 @@ what to do while a background loop watches the logs.
 | Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
 | An invisible dialog turns white and hides the game | it painted once and became opaque; an empty window region does nothing in winemac → layered, alpha 0 |
 | Dock and menu bar say "wine" (Gcenx Wine) | `CFProcessPath` = the bundle's executable + `LSUIElement` (`app-bundle.md`) |
-| Dock shows `Game.exe`/`steamwebhelper.exe` with square exe icons (WineCX + Steam) | `assets/dockfix`: dlopen-interposing dylib, game as the app, Steam hidden until it asks (`app-bundle.md`) |
+| Dock shows `Game.exe`/`steamwebhelper.exe` with square exe icons (WineCX + Steam) | `assets/dockfix`: dlopen-interposing dylib, each game as its own app, Steam as "Windows Steam" only while a window is up (`app-bundle.md`) |
+| A launch stops; Steam waits: "your account is playing X on another computer" | `KickingOtherSession` in console_log: the account is in-game elsewhere; only the user can answer |
+| The game's icon does nothing for a while after a cancelled launch | its launcher still waits (LaunchServices sees the app running) → bounded wait + cancel detection (`steam-in-wine.md`) |
 | Old 2D game slow, CPU-bound, but D3D/Win32 calls are cheap | sample the game thread; per-pixel x87 code is slow under Rosetta → patch the hot function in memory (`diagnostics.md`, `dll-and-patching.md`) |
 | Frame rate far above the display's (vsync ignored in a windowed swap chain) | hold `Present` to the refresh period in the shim while the game asks for vsync |
 | Window Retina-sized or off-screen | `RetinaMode=n`, `-screen-width/-height` |
@@ -119,6 +129,7 @@ what to do while a background loop watches the logs.
 
 ## Hard rules
 - One Wine build per prefix, ever. Store the engine version with the prefix and refuse mismatches.
+  All games of the shared Windows Steam live in its prefix, so they all run on its Wine build.
 - Never `kill -9` Steam once someone has logged in; use `-shutdown`. `wineserver -k` touches only
   `WINEPREFIX`'s processes, so other Wine sessions of the user (other games) stay alive. Never
   `pkill wineserver` globally.
@@ -137,4 +148,4 @@ what to do while a background loop watches the logs.
 | `scripts/wine/appwine` | Run a helper with a wrapped game's own Wine and prefix |
 | `scripts/wine/patch_nsiproxy.sh` | The Steam transport fix for WineCX 24.0.7_7 |
 | `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy), optional borderless work-area window; adapt per game |
-| `assets/dockfix/` | macOS dylib for the Dock: game under the app's name/icon, Steam hidden until it asks, no tray icons |
+| `assets/dockfix/` | macOS dylib for the Dock: each game under its app's name/icon, Steam as "Windows Steam" only with a window up, icon click → Steam window, Quit/⌘Q → clean shutdown |

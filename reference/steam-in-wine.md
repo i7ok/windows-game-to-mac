@@ -35,6 +35,15 @@ dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-
   per game move `steamapps/common/<dir>` + `appmanifest_<appid>.acf`, copy `userdata/<account>/<appid>`
   (Cloud cache) and `AppData/LocalLow/<studio>/<game>`, and carry its HKCU key (Unity PlayerPrefs) with
   `reg export`/`reg import` under the same engine.
+- Removing a game without Steam's window, Steam closed (done once, ROB RUN; Steam's view after its
+  next start not checked): run the "Run Process On Uninstall" commands of the game's
+  `install_script.vdf` with `appwine`. For EAC that is `EasyAntiCheat_EOS_Setup.exe uninstall
+  <productid>`, which removes the service, its folder and its keys. Move `steamapps/common/<dir>`,
+  `appmanifest_<appid>.acf` and `shadercache/<appid>` to the Trash and drop the app's line from
+  `libraryfolders.vdf`. `reg delete` `HKLM\Software\Wow6432Node\Valve\Steam\Apps\<appid>` (the
+  install-script flags; a reinstall then runs the script again) and `HKLM\…\Uninstall\Steam App <appid>`,
+  and set `Installed=0` in `HKCU\Software\Valve\Steam\Apps\<appid>`. Leave `userdata/<account>/<appid>`:
+  it is the Cloud cache, and Steam's own uninstall keeps it too.
 - Verified on an M1 (Nov 2026) with two Unity games: a game click with Steam closed starts Steam
   silently and the game ~40 s later; a game started while the user's Steam window is open comes up in
   seconds; each game shows as its own app; Cloud uploads on exit; Steam closes after a game that

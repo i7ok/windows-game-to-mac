@@ -27,6 +27,10 @@ dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-
   cancel writes no line of its own: it shows as `SlowJSMethodCall Apps.CancelGameAction` (console_log)
   and, for Auto-Cloud games, `[AppID N] Starting sync (up,AC Exit,)` (cloud_log). Bound the launcher's
   wait: while the process LaunchServices started for a game app lives, clicks on its icon do nothing.
+- A game behind a bootstrapper (`start_protected_game.exe` of EasyAntiCheat, other launchers) is Steam's
+  "game process". When the bootstrapper exits without starting the game exe, console_log says
+  `Game process removed: AppID N` and nothing else. A watcher that waits only for the game exe then
+  keeps a Steam started by the game running in the background.
 - Moving per-game apps over: adopt one logged-in prefix of the same engine (`install.sh --adopt`), then
   per game move `steamapps/common/<dir>` + `appmanifest_<appid>.acf`, copy `userdata/<account>/<appid>`
   (Cloud cache) and `AppData/LocalLow/<studio>/<game>`, and carry its HKCU key (Unity PlayerPrefs) with

@@ -29,6 +29,19 @@ the user: play on the PC, stream it, or try a Windows ARM VM.
 Lessons: check DRM in triage; XProtect scans a 15 GB bundle ~2 min on the first exec; `winebrowser.exe=d`
 when sandboxing.
 
+## ROB RUN: stopped at EasyAntiCheat (kit: `~/Macdows/RobRun-Mac`)
+Kefir, 2026, free to play and online only (PvP, co-op, MMO), Unity 6000.3 IL2CPP, EOS SDK + Steamworks,
+EasyAntiCheat EOS. Steam's only launch option is `start_protected_game.exe`. Triage, then a game kit
+for the shared Windows Steam and one launch the official way (prefix APFS-cloned first). Steam's install
+script installed the EAC service (demand start) and the VC++ 2015–2022 runtime. The bootstrapper
+showed its SDL splash, which `wtool shot` captures as black. `anticheatlauncher.log` said:
+`Running under Wine on MacOS which is currently unsupported`, then 204, "no anti-cheat module for this
+game and platform", then `Could not reach the Easy Anti-Cheat CDN!`. The game exe never started.
+Verdict given to the user: play on the PC or stream it to the Mac. The app was removed and the kit kept
+as the record. Lessons: the anti-cheat row of the triage is enough to predict this; the official launch
+gives proof in about a minute. A bootstrapper that exits without starting the game leaves a Steam started
+by the game running: the watcher waits for the game exe (`steam-in-wine.md`).
+
 ## Three Kingdoms: Fate of the Dragon: remaster via own DLL, works (kit + project: `~/Macdows/ThreeKingdoms-FoD`)
 2001, 32-bit, DirectDraw. Their own `FODDD.dll` replaces the platform layer (DirectDraw → SDL3, videos via
 pl_mpeg, input, UI) and patches the game in memory, checking the original bytes first. The exe import is

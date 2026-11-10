@@ -22,8 +22,8 @@ a Steam shortcut on Windows. Everything comes from free components. A real port 
 source code, so this is a Wine wrapper done well.
 
 This skill holds what was learned porting Northgard Battlegrounds (works), Test Drive Unlimited 2
-(blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster) and Dimraeth (Unity 6, a
-clone of the Northgard kit). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
+(blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster), Dimraeth (Unity 6, a
+clone of the Northgard kit) and ROB RUN (blocked by EasyAntiCheat). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
 builds `Windows Steam.app` (Wine, DXMT, Steam and every Steam game), and each game gets a small game kit
 and app (model: `~/Macdows/Dimraeth-Mac`). Games without Steam get a self-contained kit with their own
 Wine (`~/Macdows/Worms-Mac`). Kits aren't in this repository (Wine builds, game files): on a Mac without
@@ -48,7 +48,7 @@ them, build them from `reference/app-bundle.md` and `reference/steam-in-wine.md`
 
 ### 1. Triage → `reference/triage.md`
 Collect the facts first: bitness, graphics API, engine, DRM/anti-cheat, Steam dependency, videos,
-input stack. Then pick a route. Stop early on SecuROM, StarForce, kernel anti-cheat or D3D12-only, and
+input stack. Then pick a route. Stop early on SecuROM, StarForce, any anti-cheat (EasyAntiCheat too) or D3D12-only, and
 explain the options. Record the verdict in the kit's `CLAUDE.md`.
 
 ### 2. Kit and bundle → `reference/app-bundle.md`, `reference/stack.md`
@@ -125,6 +125,7 @@ what to do while a background loop watches the logs.
 | Window Retina-sized or off-screen | `RetinaMode=n`, `-screen-width/-height` |
 | First launch of a fresh big bundle hangs ~2 min | XProtect scanning it, once per build |
 | SecuROM "DSS"/"Suspected Virtual Operating System" | DRM vs Rosetta/LDT → dead end, explain options |
+| EasyAntiCheat splash, then no game; `anticheatlauncher.log`: `Running under Wine on MacOS which is currently unsupported`, 204 | EAC has no macOS module → dead end, explain options (`triage.md`); never start the game exe without the bootstrapper |
 | Random crashes of 32-bit code (Gcenx 11) | WoW64 under Rosetta → FoD's `wow64cpu` patch |
 
 ## Hard rules

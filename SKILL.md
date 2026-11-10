@@ -119,6 +119,7 @@ what to do while a background loop watches the logs.
 | Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
 | An invisible dialog turns white and hides the game | it painted once and became opaque; an empty window region does nothing in winemac → layered, alpha 0 |
 | Dock and menu bar say "wine" (Gcenx Wine) | `CFProcessPath` = the bundle's executable + `LSUIElement` (`app-bundle.md`) |
+| The icon does nothing for a few seconds after quitting (Gcenx, `CFProcessPath`) | Wine's helpers carry the app's identity and live through the server's 3 s persistence → `wineserver -p0` in the launcher right before `exec wine` (`app-bundle.md`) |
 | Dock shows `Game.exe`/`steamwebhelper.exe` with square exe icons (WineCX + Steam) | `assets/dockfix`: dlopen-interposing dylib, each game as its own app, Steam as "Windows Steam" only while a window is up (`app-bundle.md`) |
 | A launch stops; Steam waits: "your account is playing X on another computer" | `KickingOtherSession` in console_log: the account is in-game elsewhere; only the user can answer |
 | The game's icon does nothing for a while after a cancelled launch | its launcher still waits (LaunchServices sees the app running) → bounded wait + cancel detection (`steam-in-wine.md`) |

@@ -75,7 +75,12 @@ last game if a game started it. Self-contained kits keep the logic per game:
   path), and `LSUIElement` in Info.plist. Every Wine process then registers as our bundle. Helpers stay out of the
   Dock, and winemac makes the process with a window a regular app, with our name and icon. Side effect:
   LaunchServices counts the app as running while Wine helpers linger after a quit, so a click on the icon does
-  nothing for a few seconds. Symlinking the preloader into `Contents/MacOS` does not work.
+  nothing for a few seconds. Fix: the launcher starts the server itself, `"$WINESERVER" -p0 || true`, right before
+  `exec wine` (no persistence: it leaves with the last program). The helpers then go ~1 s after the game (their
+  graceful shutdown) instead of ~4 s (the default 3 s persistence comes first); Worms measured 1.2–1.9 s from ⌘Q to
+  the LaunchServices entry gone. Nothing may run Wine between that line and the game, or the game joins that
+  server; a second `-p0` returns 2 and changes nothing; an idle `-p0` server waits for its first client.
+  Symlinking the preloader into `Contents/MacOS` does not work.
 - With the shared Windows Steam (WineCX): each game in the Dock under its own app's name and icon, Steam as
   "Windows Steam" only while one of its windows is up → `assets/dockfix/`. Windows Steam.app's launcher puts
   it in `DYLD_INSERT_LIBRARIES` (WineCX passes it to Steam's children, games included) with `DOCKFIX_CONF`:

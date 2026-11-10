@@ -74,8 +74,9 @@ was found.
 - MFC attaches the CWnd being created to the first window created on that thread (CBT hook in `CreateEx`).
   Create the shim's own windows (backdrop) on another thread.
 - ⌘Q that always works: a `WH_KEYBOARD_LL` hook in the shim's own thread sees Alt+scan 0x10 even when the
-  game's loop is busy. Post WM_CLOSE, and end the process if it is still alive 3 s later (Worms' battle window
-  ignores WM_CLOSE).
+  game's loop is busy. Post WM_CLOSE, and end the process if it is still alive 3 s later. Where a loop is known
+  not to quit on WM_CLOSE (Worms' battle, recognised by its window class), end the process at once: the
+  watchdog would only add 3 s.
 - A fullscreen game grabs the user's screen. The users here dislike tests that take over the screen.
   Announce every launch that shows windows, prefer windowed/background tests, and never drive the real
   mouse while they are at the computer (FoD used scripted input inside its own DLL instead).

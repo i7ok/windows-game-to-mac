@@ -8,6 +8,12 @@
   `kVK_RightCommand → VK_RMENU`; `LeftCommandIsCtrl` turns it into Ctrl), Option is nothing without
   `LeftOptionIsAlt`. The app menu's Quit is ⌥⌘Q. So ⌘Q = Alt+Q, ⌘Enter = Alt+Enter, ⌘F4 = Alt+F4 (FoD, verified).
 - Match keys by **scan code**, not virtual key: the user's layout may be Russian.
+- Command is Alt, so a lone Command press (also the start of ⌘Tab) is an Alt tap, which DefWindowProc
+  turns into `WM_SYSCOMMAND SC_KEYMENU` (keyboard menu mode) on a window with `WS_SYSMENU`: the game
+  stalls until the next key. Strip WS_SYSMENU from the game window and drop SC_KEYMENU in the shim
+  (DoW DE's windows all carry WS_SYSMENU).
+- Taking ⌘Q for quitting hides the game's own Alt+Q binding (a hotkey in DoW DE's presets). Say so in the
+  README: the user can rebind it in the game.
 - Wine's app menu Quit (⌥⌘Q) and Dock → Quit raise `APP_QUIT_REQUESTED`. winemac then sends
   `WM_QUERYENDSESSION`/`WM_ENDSESSION` to the process's windows and terminates the process only if
   all agree. Plain ⌘Q never triggers it.
@@ -40,6 +46,15 @@ was found.
   system arrow over the game. A borderless window over the **work area** (`GetMonitorInfo rcWork`: below the menu
   bar, above the Dock) avoids it and behaves like a normal Mac window (FoD's "fullscreen" under Wine).
   `CaptureDisplaysForFullscreen=y` (Mac Driver key) would capture the displays instead; not tried.
+- Read how the game places its windows before choosing a fix. If its windowed mode moves the window to
+  `(max(x, rcWork.left), max(y, rcWork.top))` (DoW DE's Platform.dll), the work-area window is simply that
+  mode at the work-area size without a frame: ask for windowed mode and the size through the game's own
+  option parser (DoW DE: hooked imports of `Plat::Options::Exist("window")` and `Get("width"/"height")`,
+  answered from `GetMonitorInfo` rcWork unless the user gave the option), create the window without frame
+  styles, strip them in `WM_STYLECHANGING`, give its `AdjustWindowRectEx` import the frameless style,
+  clamp moves while it is in that mode. The back buffer then equals the client rect: no scaling, the
+  mouse exact. Its borderless mode was no use: `SetWindowPos(0, 0, mode size)` hardcoded, which only a
+  fake display mode could move.
 - No 640x480 (or other old) mode on the Mac: `HKCU\Software\Wine\X11 Driver\EmulateModeset=y` (win32u reads it
   for every driver) adds the usual 4:3 and 16:10 modes, and a mode switch scales the image. It works with winemac.
   Wine's virtual desktop (`explorer /desktop=`) does not come up with winemac.

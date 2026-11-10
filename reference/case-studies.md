@@ -100,3 +100,20 @@ cloned from the Northgard kit on the PC, from a copy older than the Northgard fi
 | Game doesn't start, Steam waits in a hidden window | Steam Cloud race: launch began while newer saves were still downloading → "syncfailed" prompt | answer in Steam's window; dockfix now gives such windows a Dock icon |
 | Steam: `failed to initialize update status ui`, "no driver could be loaded" | the Mac at load ~250 (other jobs): explorer.exe misses Wine's start-up timeout | none in the kit; launch when the Mac is not saturated |
 | The Air gets warm while playing | ~11 W for the whole Mac on battery (GPU ~60%, the game ~1.1 cores, 1440×870 on a 60 Hz screen), thermal state fair → nominal, no throttling, ~9 GB footprint (unified memory) | normal for a fanless Air at this load; a frame cap or lower settings should help (not tried) |
+
+## Warhammer 40,000: Dawn of War - Definitive Edition: works (kit: `~/Macdows/DawnOfWarDE-Mac`)
+Relic, 2025 remaster of the 2004 RTS with all expansions; 64-bit, **Direct3D 9**, Relic's own engine,
+Steamworks + RelicLink online, Steam Cloud profiles, no DRM or anti-cheat, videos WebM decoded by the
+game itself. A thin game app of the shared Windows Steam; D3D9 runs on Wine's wined3d (OpenGL) in the
+same WineCX tree as DXMT. Shim `dowfix` as an app-local `dbghelp.dll` (a full forwarder, `assets/dllproxy`).
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| (triage) no VERSION.dll or other small import to proxy | the exe imports dbghelp, user32, ws2_32, winhttp...; builtins load most of them first | `dbghelp.dll` proxy forwarding all 199 exports to system32's builtin + AppDefaults `dbghelp=native,builtin` |
+| First launch: a ~30 s pause, then the game | Steam ran the game's BugSplat install script and the shared DirectX June 2010 redist (DXSETUP) | none; afterwards d3dx9_43/d3dcompiler_43 load native from system32 (`steam-in-wine.md`) |
+| The game's window covers the whole screen (0,0-1440,900), the menu bar slides in | default mode borderless: WS_POPUP at 0,0 sized to the display mode | its windowed mode at the work-area size without a frame: `-window -width -height` answered by hooked `Plat::Options` imports, frame stripped (`input-window-quit.md`) → window = client = 0,30-1440,900 |
+| ⌘Q does nothing (Alt+Q is a game hotkey) | Command = Alt | WH_GETMESSAGE: scan 0x10 with Alt → WM_CLOSE; the window procedure only sets the quit flag → normal shutdown, Cloud upload |
+| (prevented) a lone ⌘ would stall the game | Alt tap → SC_KEYMENU on its WS_SYSMENU window | WS_SYSMENU stripped, SC_KEYMENU dropped |
+| A watcher reported the game running for 2 s | own `strings …/W40k.exe` matched `pgrep -if 'W40k\.exe'` | `diagnostics.md`, shell pitfalls |
+Verified by the user: a Soulstorm campaign mission (the game switches mods in-process), the look
+("everything looks great"), ⌘Q from the real keyboard. Battle load on the M1: ~1.5 cores, GPU 45–65 %.

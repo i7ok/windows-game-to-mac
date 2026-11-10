@@ -51,6 +51,13 @@ dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-
   Cmd+Q in Steam closes it cleanly with the login kept. Dock → Quit (the terminate hook) is untested.
 - Steamworks may write `dumps/assert_<game>.exe_*.dmp` (steamerrorreporter64.exe) soon after a game
   starts; seen with and without the shared Steam, the game runs on.
+- A game that lists Steamworks Common Redistributables (`SharedDepots` 228989/228990 in its
+  appmanifest) gets their install scripts on its first launch (`RunningInstallScript` in console_log,
+  results in `runprocess_log.txt`, once per prefix): VC++ 2022 x86/x64 and DirectX June 2010 (DXSETUP,
+  ~30 s, `regsvr32: Successfully registered DLL … XAudio2_7.dll` lines in wine.log). DXSETUP puts
+  Microsoft's d3dx9_*/d3dx10/d3dx11/d3dcompiler_4x/xaudio2/xact/x3daudio DLLs over Wine's placeholders
+  in system32/syswow64 of the shared prefix. Afterwards `d3dx9_43` and `d3dcompiler_43` load **native**
+  (`+loaddll`), `xaudio2_7` stays builtin (WineCX). D3D9 games are fine with native d3dx9 (DoW DE).
 
 ## Install and first start
 1. Silent install: `wine SteamSetup.exe /S`, then `wineserver -w`. `Steam.exe` lands in

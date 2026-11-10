@@ -23,7 +23,8 @@ source code, so this is a Wine wrapper done well.
 
 This skill holds what was learned porting Northgard Battlegrounds (works), Test Drive Unlimited 2
 (blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster), Dimraeth (Unity 6, a
-clone of the Northgard kit) and ROB RUN (blocked by EasyAntiCheat). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
+clone of the Northgard kit), Dawn of War: Definitive Edition (D3D9 on the shared Steam, dbghelp proxy)
+and ROB RUN (blocked by EasyAntiCheat). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
 builds `Windows Steam.app` (Wine, DXMT, Steam and every Steam game), and each game gets a small game kit
 and app (model: `~/Macdows/Dimraeth-Mac`). Games without Steam get a self-contained kit with their own
 Wine (`~/Macdows/Worms-Mac`). Kits aren't in this repository (Wine builds, game files): on a Mac without
@@ -108,10 +109,11 @@ what to do while a background loop watches the logs.
 | Black screen after logos, `WindowsVideoMedia error` | GStreamer missing |
 | Unity: clicks ignored, scroll dead, `EnableMouseInPointer failed` | Unity 6 pointer mode → ngfix shim |
 | Shim in the game folder has no effect; `+loaddll` says `builtin` | Wine prefers builtin → AppDefaults DllOverrides `native,builtin` |
+| No small DLL to proxy (the game imports no version.dll) | full forwarder for a DLL only the exe imports (DoW DE: dbghelp), `assets/dllproxy` (`dll-and-patching.md`) |
 | ⌘Q does nothing | WineCX and Gcenx 11 map Command→Alt; Wine's Quit is ⌥⌘Q → catch Alt+Q (scan 0x10) in the shim |
 | Two cursors | game calls ShowCursor(0); check `trace+cursor` / shim log |
 | System cursor back after ⌘Tab or a click at the top edge | winemac's `[NSCursor hide]` counter; keep ShowCursor(0) from Wine, use a transparent cursor (`input-window-quit.md`) |
-| Menu bar slides over a fullscreen game at the top edge | borderless window over the work area instead of the whole screen (Unity: ngfix's work-area monitor, `unity.md`) |
+| Menu bar slides over a fullscreen game at the top edge | borderless window over the work area instead of the whole screen (Unity: ngfix's work-area monitor, `unity.md`; a game with a windowed mode: that mode at the work-area size without a frame, `input-window-quit.md`) |
 | Unity window shrunk to the work area: gray band at the top, clicks above their targets | clamped size: stale caption frame, Unity renders the size it asked for → show Unity a work-area-sized monitor (`unity.md`) |
 | D3D9 game wants fullscreen 640x480, CreateDevice fails `0x8876086a` in a loop | the Mac has no such mode → `HKCU\Software\Wine\X11 Driver\EmulateModeset=y` |
 | Clicks on a menu/dialog reach the window behind it (a disabled main window beeps) | winemac makes never-painted windows click-through → forward the click in the shim (`input-window-quit.md`) |
@@ -145,8 +147,9 @@ what to do while a background loop watches the logs.
 |---|---|
 | `reference/*.md` | Details per phase (read the one the workflow points to) |
 | `scripts/win32/*.c` + `build.sh` (+ prebuilt x86_64 `.exe`) | Win32 helpers: wtool, winfo, wclose, focusprobe, rawtest, tcptest, ptrtest |
-| `scripts/pe/*.py` | PE analysis: imports, IAT slot names, call sites of an import, string xrefs (run with `python3 -I`) |
+| `scripts/pe/*.py` | PE analysis: imports, exports, IAT slot names, call sites of an import, string xrefs (run with `python3 -I`); `exe_icon.py` pulls the exe's icon as PNG |
 | `scripts/wine/appwine` | Run a helper with a wrapped game's own Wine and prefix |
 | `scripts/wine/patch_nsiproxy.sh` | The Steam transport fix for WineCX 24.0.7_7 |
+| `assets/dllproxy/` | Full forwarder for an app-local proxy DLL: `gen_forwarder.py` (export list → jump thunks + .def), `forward.c` (fills them from the system DLL) |
 | `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy), optional borderless work-area window; adapt per game |
 | `assets/dockfix/` | macOS dylib for the Dock: each game under its app's name/icon, Steam as "Windows Steam" only with a window up, icon click → Steam window, Quit/⌘Q → clean shutdown |

@@ -67,6 +67,10 @@ exe from `/var/folders/.../winetemp-*`. `lsappinfo list` shows how macOS registe
 - `kill $pids` with several pids fails ("illegal pid"). Use `${=pids}` or a bash script.
 - `ps … | grep pattern` matches your own `zsh -c` (its args contain the pattern). Use `ps -Ao comm`
   or `pgrep` with care.
+- `pgrep -if 'Game\.exe'` also matches any process whose arguments contain the exe's path, e.g. your
+  own `strings …/Game.exe`: a watcher once reported the game as started for the 2 s that command ran
+  (DoW DE). Keep commands on the game's files away from running watchers, or match the Windows path
+  that Wine puts first in argv (`^[a-z]:\\`), as Worms' launcher does.
 - A bare `sleep N` is blocked. Use until-loops with a condition, or background tasks.
 - Heredocs mangle backslashes in Windows paths and C escapes. Write source files with the Write tool.
 - Wrapper scripts that `export WINEDLLOVERRIDES=…` overwrite yours. Append instead.

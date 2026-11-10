@@ -22,6 +22,23 @@ patch or crack DRM at all.
 6. Verify loading with a stand-in before involving the user: a stub exe with the game's exe name that
    imports the same module, run with `WINEDEBUG=+loaddll`, and `native` in the output.
 
+## Full forwarder: when the game imports no small DLL (DoW DE's dbghelp.dll)
+DoW DE's exe imports no VERSION.dll. Every DLL it imports either has hundreds of exports or is loaded by
+Wine's own builtins first (then the base-name match hands the game the builtin, never yours). The one that
+fit: `dbghelp.dll`, imported by the exe for crash stack walks, loaded by nothing else in the process.
+- `assets/dllproxy/`: list the builtin's exports (`scripts/pe/exports.py` on
+  `lib/wine/x86_64-windows/<dll>` of the game's engine), `gen_forwarder.py` turns them into one
+  `jmp *slot(%rip)` per export plus a `.def`, and `forward.c` fills the slots in DllMain from
+  `C:\windows\system32\<dll>` loaded by full path. A jump keeps registers and stack, so every signature
+  works without prototypes. Wine then has two modules named `dbghelp.dll` (yours from the game folder,
+  the builtin from system32), as Windows does. Check the builtin has no forwarders or data exports.
+- Same rule as above: AppDefaults `<dll>=native,builtin` for the game exe. Other exes in the folder keep
+  the builtin (+loaddll shows it), so the proxy only ever runs in the game.
+- A DLL the exe imports statically loads before any game code; its DllMain runs after the whole import
+  tree is resolved, so the IATs of the game's other modules (DoW DE: Platform.dll) can be patched there.
+- Stand-in first: a tiny exe named like the game that imports the DLL, run with `+loaddll` (`native`,
+  then the builtin from system32), calling a few forwarded functions.
+
 ## Stub DLLs with exact exports (TDU2's CrashHook.dll)
 To satisfy a launcher check or remove crash-reporter UI, replace the game's DLL with a stub exporting
 the same names, keeping the original as `.orig`. For 32-bit stdcall, export names must keep their

@@ -2,10 +2,12 @@
 
 A Claude Code skill for running Windows PC games on Apple Silicon Macs as native-looking `.app` bundles
 with a free Wine stack (WineCX or Gcenx Wine, DXMT, GStreamer), including Windows Steam inside Wine. It
-grew out of three real ports:
-- Northgard Battlegrounds: works;
-- Test Drive Unlimited 2: stopped by SecuROM copy protection;
-- Three Kingdoms: Fate of the Dragon: remastered through a custom DLL.
+grew out of real ports:
+- Northgard Battlegrounds, Dimraeth (Unity 6, Direct3D 11): work;
+- Warhammer 40,000: Dawn of War - Definitive Edition (Direct3D 9): works;
+- Worms World Party Remastered: works, with an in-memory speed fix;
+- Three Kingdoms: Fate of the Dragon: remastered through a custom DLL;
+- Test Drive Unlimited 2 and ROB RUN: stopped by SecuROM and EasyAntiCheat.
 
 ## Install
 
@@ -52,11 +54,12 @@ and `reference/steam-in-wine.md`.
 | `reference/input-window-quit.md` | The Mac keyboard in Wine, ⌘Q, Quit from the Dock, focus, cursor |
 | `reference/dll-and-patching.md` | Changing behaviour without source code: DLL shims, byte patches |
 | `reference/diagnostics.md` | Logs, Wine traces, helper tools, debugging method, shell pitfalls |
-| `reference/case-studies.md` | The three ports: what broke and how it was fixed |
+| `reference/case-studies.md` | The ports: what broke and how it was fixed |
 | `scripts/win32/` | Win32 diagnostic helpers that run inside Wine: windows, focus, input, TCP tables (sources and prebuilt `.exe`) |
-| `scripts/pe/` | Python tools for Windows binaries (imports, call sites, string references) |
+| `scripts/pe/` | Python tools for Windows binaries (imports, exports, call sites, string references, the exe's icon) |
 | `scripts/wine/` | Running the helpers in a game's Wine environment; the `nsiproxy.so` patch for Steam |
 | `assets/ngfix/` | Input shim for Unity 6 games (clicks, scrolling, ⌘Q) |
+| `assets/dllproxy/` | Generator of a full forwarder for a proxy DLL, for games without a small DLL to hook into |
 | `assets/dockfix/` | macOS dylib for the Dock: each game as its own app, Windows Steam shown only with a window up, its icon click and Quit handled |
 | `.claude-plugin/` | Manifests of the plugin and the `macdows` marketplace |
 

@@ -17,6 +17,7 @@ the game already runs; on the Mac, read them from the copied game folder.
 | Videos | `.mp4/.webm/.bik/.mkv/.usm` files, `VideoClip` in Unity assets | Media Foundation → winegstreamer → GStreamer.framework; Bink is fine natively; WebM decoded by the game's own libvpx (`WebM Project VP9 Decoder` in its strings, DoW DE) needs nothing |
 | Input | Unity Input System (`UnityEngine.InputSystem` in metadata), raw input imports, `EnableMouseInPointer` | Unity 6 pointer-mode mouse needs the ngfix shim |
 | Window mode | fullscreen by default? command-line switches (`-screen-*`, `-w`) | The user dislikes test runs that grab the screen; plan windowed tests |
+| Languages | `language/*.txt` or similar, the store page; bitmap font sheets (`*font*.bmp`, `.fnt` in archives) | A missing language or Cyrillic that shows as accented Latin letters is the game's, not Wine's ("Language and fan translations" below) |
 
 ## Decision
 
@@ -43,3 +44,20 @@ the game already runs; on the Mac, read them from the copied game folder.
 
 Write the verdict and the facts into the kit's `CLAUDE.md` before moving on, so a later session
 does not redo the triage.
+
+## Language and fan translations
+- Gcenx Wine 11 takes the code pages and the locale from the Mac's language and region, also for an app started
+  from Finder (no `LANG`): a Russian Mac gives ACP 1251, OEM 866, ru-RU (a tiny exe printing `GetACP`, `GetOEMCP`
+  and `GetUserDefaultLocaleName` shows it). A non-Unicode game then gets typed Cyrillic as cp1251 bytes.
+- Russian that shows as accented Latin letters ("×åðâÿê") or not at all: the game's own 8-bit bitmap fonts have no
+  Cyrillic. Look at the font sheets before suspecting Wine (Worms: 162 cells, ASCII + Latin-1). Fan translations
+  of such games put Cyrillic glyphs into the Latin-1 slots and cp1251 bytes into the text (Worms: «Русский
+  проект»/ENPY Studio). Then Latin-1 symbols in the exe's own strings turn into letters (Worms' `%d×%d` showed
+  "1024Ч640"): patch that string in memory from the shim, after checking its bytes.
+- Fan patches come as installers from download sites, sometimes with malware reports in the comments. Never run
+  them, not even in Wine: Inno Setup installers are listed and extracted by `innoextract` (Homebrew). If its files
+  are encrypted and the download page names no password, the installer fills it in itself and it sits among the
+  strings of the installer's own setup data; `innoextract --show-password` gives the salted SHA-1 to check
+  candidates against (Worms kit: `devtools/inno_pw.py`). Install only data files (text, fonts, archives), compare
+  them with the game's first (archives entry by entry, string IDs, printf specifiers), and keep the originals for
+  an uninstall script.

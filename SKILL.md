@@ -23,8 +23,8 @@ source code, so this is a Wine wrapper done well.
 
 This skill holds what was learned porting Northgard Battlegrounds (works), Test Drive Unlimited 2
 (blocked by SecuROM), Three Kingdoms: Fate of the Dragon (own DLL remaster), Dimraeth (Unity 6, a
-clone of the Northgard kit), Dawn of War: Definitive Edition (D3D9 on the shared Steam, dbghelp proxy)
-and ROB RUN (blocked by EasyAntiCheat). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
+clone of the Northgard kit), Dawn of War: Definitive Edition (D3D9 on the shared Steam, dbghelp proxy),
+ROB RUN (blocked by EasyAntiCheat) and MY CAT SCATTERED GAMES (Unreal Engine 5.7 on D3D11, uefix). Steam games share one Windows Steam: the kit `~/Macdows/WindowsSteam-Mac`
 builds `Windows Steam.app` (Wine, DXMT, Steam and every Steam game), and each game gets a small game kit
 and app (model: `~/Macdows/Dimraeth-Mac`). Games without Steam get a self-contained kit with their own
 Wine (`~/Macdows/Worms-Mac`). Kits aren't in this repository (Wine builds, game files): on a Mac without
@@ -73,6 +73,8 @@ the download.
 - Graphics: D3D11 → DXMT in the Wine tree (both arches). Check the game log for the D3D device line.
 - Videos: GStreamer. A black screen after the logos means video decode.
 - Unity: `reference/unity.md`. Unity 6 needs the ngfix shim for clicks and scroll (`assets/ngfix/`).
+- Unreal Engine 5: `reference/unreal.md`. `-dx11` (SM5 shaders), the bootstrapper's VC++ check, the
+  uefix shim for the work-area window and ⌘Q (`assets/uefix/`).
 - Input, focus, ⌘Q, Dock → Quit, cursor, window size: `reference/input-window-quit.md`.
 - Shims and patches: `reference/dll-and-patching.md`.
 
@@ -130,6 +132,9 @@ what to do while a background loop watches the logs.
 | SecuROM "DSS"/"Suspected Virtual Operating System" | DRM vs Rosetta/LDT → dead end, explain options |
 | EasyAntiCheat splash, then no game; `anticheatlauncher.log`: `Running under Wine on MacOS which is currently unsupported`, 204 | EAC has no macOS module → dead end, explain options (`triage.md`); never start the game exe without the bootstrapper |
 | Random crashes of 32-bit code (Gcenx 11) | WoW64 under Rosetta → FoD's `wow64cpu` patch |
+| UE5 game asks for D3D12 / DirectX 12 errors | `-dx11` when the .utoc lists `PCD3D_SM5` shader archives; SM6 only = no free route (`unreal.md`) |
+| Unreal bootstrapper: "Microsoft Visual C++ 2015-2022 Redistributable (x64)" required, though installed | Wine maps its builtin msvcp140_2/vcruntime140_1 (no version resource) for the version check → those DLLs native,builtin for the bootstrapper exe only (`unreal.md`) |
+| Unreal: clicks off by the menu bar's height, `ClipCursor` rect reaches into the menu bar | Slate knows the window position only from WM_MOVE; a clamped move sends none → uefix tells it after every clamp (`unreal.md`) |
 
 ## Hard rules
 - One Wine build per prefix, ever. Store the engine version with the prefix and refuse mismatches.
@@ -154,3 +159,4 @@ what to do while a background loop watches the logs.
 | `assets/dllproxy/` | Full forwarder for an app-local proxy DLL: `gen_forwarder.py` (export list → jump thunks + .def), `forward.c` (fills them from the system DLL) |
 | `assets/ngfix/` | Unity 6 input/quit shim (version.dll proxy), optional borderless work-area window; adapt per game |
 | `assets/dockfix/` | macOS dylib for the Dock: each game under its app's name/icon, Steam as "Windows Steam" only with a window up, icon click → Steam window, Quit/⌘Q → clean shutdown |
+| `assets/uefix/` | Unreal Engine 5 shim (version.dll proxy patching the shipping exe's imports): ⌘Q, lone Command, borderless work-area window with Slate's position kept right |

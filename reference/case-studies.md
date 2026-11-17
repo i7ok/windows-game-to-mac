@@ -118,3 +118,18 @@ same WineCX tree as DXMT. Shim `dowfix` as an app-local `dbghelp.dll` (a full fo
 | A watcher reported the game running for 2 s | own `strings …/W40k.exe` matched `pgrep -if 'W40k\.exe'` | `diagnostics.md`, shell pitfalls |
 Verified by the user: a Soulstorm campaign mission (the game switches mods in-process), the look
 ("everything looks great"), ⌘Q from the real keyboard. Battle load on the M1: ~1.5 cores, GPU 45–65 %.
+
+## MY CAT SCATTERED GAMES: Tidy Videogame Supermarket: works (kit: `~/Macdows/MyCatScatteredGames-Mac`)
+ODIUS / Loopr Partners, Unreal Engine 5.7 (2025), 64-bit, first-person shop tidying with web mini-games
+(CEF); Steamworks + Auto-Cloud saves, no DRM or anti-cheat. A thin game app of the shared Windows Steam,
+D3D11 on DXMT with `-dx11`, shim `uefix` as an app-local `version.dll` (`unreal.md`).
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| (triage) D3D12 by default, Agility SDK shipped | UE5 default RHI | SM5 shader archives in the .utoc → `-dx11` in the kit's `args` |
+| First launch: «Ошибка: … Microsoft Visual C++ 2015-2022 Redistributable (x64) … install them now?» | the bootstrapper reads the version resources of system32 msvcp140_2/vcruntime140_1; Wine maps its builtins (none) | AppDefaults `GameKeeper.exe` → msvcp140, msvcp140_2, vcruntime140, vcruntime140_1 = native,builtin (Microsoft's 14.51 was already there); new `Other.exe:dll=val` syntax in the shared launcher |
+| The fullscreen window would cover the menu bar | windowed fullscreen on the monitor rect | uefix: work-area monitor + clamp → window 0,30-1440,900, ResolutionSize 1440x870 |
+| Cursor clip `1,1-1439,869` in first person; UI hit-testing 30 px off | the first fit ran inside the CreateWindowExW hook (Unreal had no handle yet), later clamps changed nothing → no WM_MOVE | post the first fit; WM_MOVE with the real origin after each clamp → `ClipCursor(1,31-1439,899)` |
+| ⌘Q | Command = Alt | uefix: Alt+Q (scan 0x10) → WM_CLOSE → Unreal exits in 3 s (verified with the real keyboard) |
+Healthy end state: the game in a borderless window over the work area, the save (`SaveGame.sav`, ~19 MB)
+synced by Steam Auto-Cloud, CEF helpers BackgroundOnly, no DXMT errors.

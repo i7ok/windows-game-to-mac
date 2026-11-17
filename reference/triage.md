@@ -9,7 +9,7 @@ the game already runs; on the Mac, read them from the copied game folder.
 |---|---|---|
 | 32- or 64-bit exe | `file Game.exe` (PE32 / PE32+), or pefile | 32-bit code runs in Wine's WoW64 under Rosetta: slower and more fragile (FoD needed a wow64cpu patch) |
 | Graphics API | imports (`scripts/pe/imports.py`): d3d9/d3d11/d3d12/ddraw/opengl32/vulkan-1; Unity's `Player.log` line `Direct3D: Version: ...`; Unity `-force-*` strings | Picks the renderer: D3D11 → DXMT; D3D9 → wined3d (OpenGL) or DXVK-macOS; DirectDraw → wined3d or own wrapper DLL; D3D12-only → no free path |
-| Engine | `UnityPlayer.dll` + `*_Data/` (Unity; `GameAssembly.dll` = IL2CPP), `*.pak` + `Engine/` (Unreal), else custom | Unity has known Wine quirks with fixes ready (`reference/unity.md`) |
+| Engine | `UnityPlayer.dll` + `*_Data/` (Unity; `GameAssembly.dll` = IL2CPP), `*.pak`/`*.utoc` + `Engine/` (Unreal; `++UE5+Release-5.x` in the shipping exe), else custom | Unity and Unreal have known Wine quirks with fixes ready (`reference/unity.md`, `reference/unreal.md`) |
 | DRM / copy protection | sections and DLLs: SecuROM (`paul.dll`, wrapper section), StarForce, Denuvo; `steam_api*.dll` (plain Steamworks is fine) | SecuROM 8 fails on Apple Silicon (TDU2): stop early, don't crack |
 | Anti-cheat | EasyAntiCheat (`EasyAntiCheat/` folder, `start_protected_game.exe` as Steam's launch option, an install script running `EasyAntiCheat_EOS_Setup.exe`), BattlEye, Vanguard, nProtect folders/drivers | None of them runs on macOS Wine: stop. EAC's Wine mode exists for Linux/Proton only (native `.so` module). On the Mac its bootstrapper logs `Running under Wine on MacOS which is currently unsupported` and exits with 204 (ROB RUN, `case-studies.md`) |
 | Store/launcher dependency | `steam_api64.dll` and `SteamAPI_Init` in logs; Epic/EOS SDK; custom launchers (`UpLauncher`) | Steam games need Windows Steam inside Wine (`reference/steam-in-wine.md`); launcher checks can be satisfied by stub DLLs |
@@ -23,6 +23,9 @@ the game already runs; on the Mac, read them from the copied game folder.
 
 - **D3D11, 64-bit, no kernel anti-cheat** → the Northgard recipe: Sikarugir WineCX 24 engine + DXMT +
   GStreamer (+ Windows Steam in Wine if it uses Steamworks). Highest chance of success.
+- **Unreal Engine 5 (D3D12 by default)** → D3D11 with `-dx11` if it was cooked with SM5 shaders
+  (`PCD3D_SM5` shader archives in the `.utoc`), then the D3D11 recipe; its bootstrapper needs one Wine
+  setting and the window a shim (`reference/unreal.md`). SM6 only = D3D12 only, see below.
 - **D3D9, 64-bit, Steam** → the shared Windows Steam as it is: its WineCX tree keeps Wine's own
   `d3d9.dll` + `wined3d.dll` (OpenGL) next to DXMT's d3d11/dxgi. DoW DE (2025 remaster of a 2004 RTS)
   runs that way at 1440×870 on an M1; the game sees wined3d's stand-in card ("NVIDIA GeForce 8800 GTX"),

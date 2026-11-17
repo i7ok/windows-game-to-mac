@@ -30,6 +30,12 @@ Unreal's bootstrapper.
   `[ScalabilityGroups] sg.*Quality` (3 = Epic when no benchmark ran). Saves: `Saved/SaveGames/*.sav`
   (often Steam Auto-Cloud `WinAppDataLocal`).
 - Arguments: `-dx11`, `-windowed`, `-fullscreen`, `-ResX=`, `-ResY=`, `-WinX=`, `-WinY=`.
+- **Load on a fanless Air:** with no `FrameRateLimit` in GameUserSettings.ini (= 0, unlimited) the game
+  renders flat out, menus included, on top of Rosetta and DXMT. The Mac heats up, and Steam's window
+  (CEF with `--disable-gpu`, drawn by the CPU) lags while the game runs. The built-in display shows
+  60 Hz, so add `FrameRateLimit=60.000000` under `[/Script/Engine.GameUserSettings]` while the game is
+  closed (it rewrites the file at exit; keep its CRLF line endings). Change `sg.*Quality` only if the
+  user wants lower graphics. The setting lives in the prefix, not in the kit.
 
 ## The bootstrapper says "Microsoft Visual C++ 2015-2022 Redistributable (x64)" is required
 "The following component(s) are required to run this program … Would you like to install them now?"

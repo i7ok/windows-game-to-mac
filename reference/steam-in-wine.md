@@ -129,9 +129,39 @@ all need that thread; if it hangs, every one of them silently does nothing.
 - Closing it: `-shutdown` and WM_QUERYENDSESSION both need the hung thread, so the only way out is
   `WINEPREFIX=<prefix> wineserver -k`. Ask the user first (it is the kill the first rule warns about)
   and copy `config/*.vdf`, `AppData/Local/Steam/local.vdf` (the refresh token) and the prefix's
-  `.reg` files aside, so the login can be put back by hand.
+  `.reg` files aside, so the login can be put back by hand. Then delete the leftover `TempAppCmdLine`
+  (both views): a new Steam must not find an old `-shutdown`. The login survived this (2026-11-18).
+- Let the launcher notice it (shared Windows Steam launcher, 2026-11-18): after every command it
+  hands to a running Steam (Cmd+Q → `-shutdown`, the icon → show, a game icon → `-applaunch`, the
+  after-game `-shutdown`), poll `reg query HKLM\Software\Valve\Steam /v TempAppCmdLine` (run `reg`
+  without the dockfix `DYLD_INSERT_LIBRARIES`). A healthy client deletes the value within ~1 s
+  (measured); still there after 20 s means hung. A Steam younger than 3 min gets until it is 3 min
+  old: a starting client takes the command only once it is up. On a hang, ask in an osascript
+  `display dialog` (`activate` first, `giving up after` 600 = no, one dialog at a time via a lock
+  dir with a pid). On yes, check the value once more (only slow on a busy Mac? then leave it), back
+  up the login files (keep the 3 newest), `wineserver -k`, clean the registry, and start Steam again
+  for show and launch. A forced close also closes running games: say so in the dialog.
+- Testing it without a real hang: `scripts/win32/steamui.exe suspend` freezes the client's UI thread
+  (the owner of its `vguiPopupWindow`s) on a real Steam started `-silent` (no window): detected in
+  21 s; `steamui.exe resume` then let Steam run the pending `-shutdown` and log off cleanly. For the
+  forced close, run `scripts/win32/fakesteam.exe` in the prefix with Steam closed. It takes Steam's
+  event and SteamPID and never answers, so the logged-in Steam is never killed. Measured: backup,
+  kill and cleanup took 2 s, and a `-silent` restart logged on with the saved token 14 s later.
+  Afterwards set `SteamPID` back to 0.
 - Count processes: Steam restarts itself as lowercase `steam.exe`, so match case-insensitively.
   In zsh, `ps args | grep pattern` matches your own shell. Count with `ps -Ao comm | grep -c winetemp-<inode>`.
+
+## Steam quits at start: "failed to initialize update status ui, or create initial window"
+`src\steamexe\main.cpp (1436)` in Steam's stdout, then steam.exe exits. Nothing after the three
+`Startup` lines in `logs/bootstrap_log.txt`. The bootstrapper's update-status UI object (its Init or
+first-window call) gave up about 10 s after `Startup`, where a good start passes that step in under
+a second. It depends on load: on 2026-11-18 it failed in 4 of 7 starts, at load averages of 15–50
+(other apps busy, Spotlight on a freshly built bundle), twice with starts 1 s apart. The next start,
+a minute later at load ~20, worked. Wine's desktop (`explorer.exe /desktop`) was already up for the
+second try, so it is not that start-up wait. The cause inside the 10 s is not known. In the
+launcher: when steam.exe exits within 90 s, no steam.exe is left and the line is in the log since
+the start, try again after 20 s, 3 tries in all, then tell the user the Mac is too busy. While it
+retries, keep a marker file fresh so that the "Steam is gone" waits of the game launch don't give up.
 
 ## Overlay
 Disable `gameoverlayrenderer,gameoverlayrenderer64=d`. Its D3D11 hooks can hang games at

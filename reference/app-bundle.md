@@ -61,6 +61,11 @@ last game if a game started it. Self-contained kits keep the logic per game:
   puts Windows paths in argv), wait for it to exit, then `wine steam.exe -shutdown` if this click
   started Steam. That is the "Steam closes after the game" behaviour.
 - Other modes: `--prepare`, `--steam`, `--stop` (graceful), `--winecfg`, `--logs`.
+- Shared Windows Steam launcher: every command handed to a running Steam is checked (the
+  `TempAppCmdLine` value must go). A hung Steam gets a dialog offering a forced close, with a backup
+  of the login files. A cold start retries steam.exe's load-related "failed to initialize update
+  status ui" (`steam-in-wine.md`). A launcher-only change goes in with `install -m 755` into
+  `Contents/MacOS` (the bundle is not signed): no rebuild, no Spotlight/XProtect rescan of 600 MB.
 - For debugging the way the user launches (LaunchServices), use `open "/Applications/<Game>.app"`.
   `open --env VAR=…` passes env, but the launcher's defaults override it, so put temporary
   `NG_WINEDEBUG=…` lines in settings.sh, mark them `# TEMP diagnostics`, and remove them after.

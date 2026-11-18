@@ -9,6 +9,8 @@
 #   rawtest                    does Wine deliver raw mouse input (WM_INPUT) to the foreground window?
 #   tcptest                    does GetExtendedTcpTable work and report owning PIDs?
 #   ptrtest                    what Wine's GetPointerType/GetPointerInfo/EnableMouseInPointer return
+#   steamui    suspend|resume|info   freeze/thaw the running Steam client's UI thread (a hung Steam)
+#   fakesteam                  a stand-in hung Steam client: takes Steam's command event, never answers
 set -euo pipefail
 cd "$(dirname "$0")"
 arch="${1:-x86_64}"
@@ -22,3 +24,5 @@ build focusprobe -luser32
 build rawtest -luser32
 build tcptest -lws2_32 -liphlpapi
 build ptrtest -luser32
+build steamui -luser32 -ladvapi32
+build fakesteam -ladvapi32

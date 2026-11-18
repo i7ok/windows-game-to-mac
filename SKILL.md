@@ -152,7 +152,7 @@ what to do while a background loop watches the logs.
 | Path | Use |
 |---|---|
 | `reference/*.md` | Details per phase (read the one the workflow points to) |
-| `scripts/win32/*.c` + `build.sh` (+ prebuilt x86_64 `.exe`) | Win32 helpers: wtool, winfo, wclose, focusprobe, rawtest, tcptest, ptrtest |
+| `scripts/win32/*.c` + `build.sh` (+ prebuilt x86_64 `.exe`) | Win32 helpers: wtool, winfo, wclose, focusprobe, rawtest, tcptest, ptrtest; steamui, fakesteam (hung-Steam tests) |
 | `scripts/pe/*.py` | PE analysis: imports, exports, IAT slot names, call sites of an import, string xrefs (run with `python3 -I`); `exe_icon.py` pulls the exe's icon as PNG |
 | `scripts/wine/appwine` | Run a helper with a wrapped game's own Wine and prefix |
 | `scripts/wine/patch_nsiproxy.sh` | The Steam transport fix for WineCX 24.0.7_7 |

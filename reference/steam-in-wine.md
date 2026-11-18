@@ -103,6 +103,33 @@ dlloverrides, shims; `payload/`; `game/`), installed with `WindowsSteam-Mac/add-
   only that prefix's processes, so other Wine sessions of the user survive.
 - Close a running game gracefully from outside: post WM_CLOSE to its window
   (`scripts/win32/wclose.exe <hwnd>`; get the hwnd with `wtool list`). The watcher then shuts Steam down.
+
+## A hung Steam UI thread (ignores -shutdown, the window won't come back)
+How a second `steam.exe <args>` reaches the running client (read from steam.exe): it opens the event
+`Global\Valve_SteamIPC_Class`, writes its command line to `HKLM\Software\(Wow6432Node\)Valve\Steam`
+`TempAppCmdLine`, reads `SteamPID`, calls `SetEvent` and exits at once. The client's UI thread takes
+the (manual-reset) event and runs the command. So `-shutdown`, showing the window and `-applaunch`
+all need that thread; if it hangs, every one of them silently does nothing.
+- Signs: `TempAppCmdLine` keeps the last command and the event stays signaled (`NtQueryEvent` from a
+  small helper); `logs/steamui.txt` goes quiet (it normally logs `SteamUI thread frame stalled for: N
+  ms` after every sleep of the Mac); `SendMessageTimeout(SMTO_ABORTIFHUNG)` to steam.exe's
+  `vguiPopupWindow` fails at once. The CM connection and the web helper keep working, so menus still
+  open and the user just sees a slow, half-dead UI.
+- Find the blocked call: `winedbg --command "bt all" 0x<steam pid>` through `scripts/wine/appwine`
+  (the pid is `HKCU\Software\Valve\Steam\ActiveProcess\pid`), then name tier0/steamui frames with
+  the export table.
+- Seen once (2026-11): the UI thread sat in `tier0 CThread::Join` (no timeout) on Steam's jump-list
+  thread, which was inside `CoCreateInstance(CLSID_DestinationList {77F10CF0-3DB5-4966-B520-
+  B7C54FD35ED6})`. Wine registers that shell32 class as `ThreadingModel=Apartment`, so COM builds it
+  in a host apartment thread and waits for an RPC reply that never came. It started when Steam
+  logged on again during a dark wake of the sleeping Mac (maintenance wakes every ~15 min) and
+  rebuilt the jump list; the Mac slept again mid-call. Fix: delete that CLSID key (both registry
+  views) in the launcher's one-time prefix tweaks. macOS has no Jump List, CoCreateInstance then
+  fails at once and Steam skips it.
+- Closing it: `-shutdown` and WM_QUERYENDSESSION both need the hung thread, so the only way out is
+  `WINEPREFIX=<prefix> wineserver -k`. Ask the user first (it is the kill the first rule warns about)
+  and copy `config/*.vdf`, `AppData/Local/Steam/local.vdf` (the refresh token) and the prefix's
+  `.reg` files aside, so the login can be put back by hand.
 - Count processes: Steam restarts itself as lowercase `steam.exe`, so match case-insensitively.
   In zsh, `ps args | grep pattern` matches your own shell. Count with `ps -Ao comm | grep -c winetemp-<inode>`.
 

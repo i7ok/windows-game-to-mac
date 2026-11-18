@@ -46,7 +46,9 @@ last game if a game started it. Self-contained kits keep the logic per game:
 - Refuse to run if `engine-version` next to the prefix differs from the app's engine.
 - `prepare_prefix`: `wineboot --init` → one-time tweaks behind a marker `.ng-prefix-v<N>` (bump N to
   re-run on existing prefixes): de-symlink user folders (no macOS ~/Documents permission prompts),
-  `RetinaMode=n`, AppDefaults DllOverrides for shims → silent Steam install (`SteamSetup.exe /S`) →
+  `RetinaMode=n`, AppDefaults DllOverrides for shims, for Steam prefixes delete
+  `HKLM\Software\Classes(\Wow6432Node)\CLSID\{77F10CF0-3DB5-4966-B520-B7C54FD35ED6}` (Jump List
+  class; it once froze Steam's UI thread, `steam-in-wine.md`) → silent Steam install (`SteamSetup.exe /S`) →
   `steam_dev.cfg` → copy `settings.sh` template.
 - Env: `WINEDLLOVERRIDES` (Steam overlay off: `gameoverlayrenderer,gameoverlayrenderer64=d`;
   `winemenubuilder.exe=d`; TDU2 also `winebrowser.exe=d`, `mscoree=;mshtml=`),
